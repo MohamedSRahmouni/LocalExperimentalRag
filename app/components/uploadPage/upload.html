@@ -1,0 +1,382 @@
+{% extends "base.html" %}
+
+{% block title %}Upload - Enterprise RAG{% endblock %}
+{% block nav_upload %}active{% endblock %}
+
+{% block content %}
+<div class="card">
+    <h1><i class="fas fa-cloud-upload-alt"></i> Upload Documents</h1>
+    <p style="color: var(--gray); margin-bottom: 2rem;">
+        Upload your documents to build your knowledge base. Supported formats: PDF, DOCX, CSV, TXT, EML, MSG
+    </p>
+
+    <div class="upload-container">
+        <div class="drop-zone" id="dropZone">
+            <div class="drop-zone-icon">
+                <i class="fas fa-cloud-upload-alt"></i>
+            </div>
+            <h3>Drag & Drop Files Here</h3>
+            <p>or</p>
+            <label for="fileInput" class="btn btn-primary">
+                <i class="fas fa-folder-open"></i> Browse Files
+            </label>
+            <input type="file" id="fileInput" multiple accept=".pdf,.doc,.docx,.csv,.txt,.eml,.msg" style="display: none;">
+            <p class="file-types">PDF, DOCX, CSV, TXT, EML, MSG</p>
+        </div>
+
+        <div id="fileList" class="file-list"></div>
+
+        <div id="uploadProgress" class="upload-progress" style="display: none;">
+            <div class="progress-bar">
+                <div class="progress-fill" id="progressFill"></div>
+            </div>
+            <p id="progressText">Uploading...</p>
+        </div>
+
+        <button id="uploadBtn" class="btn btn-primary upload-btn" style="display: none;">
+            <i class="fas fa-upload"></i> Upload Files
+        </button>
+    </div>
+</div>
+
+<div id="notification" class="notification"></div>
+
+<style>
+    .upload-container {
+        max-width: 800px;
+        margin: 0 auto;
+    }
+
+    .drop-zone {
+        border: 3px dashed #cbd5e1;
+        border-radius: 20px;
+        padding: 3rem;
+        text-align: center;
+        transition: all 0.3s ease;
+        background: linear-gradient(135deg, rgba(99, 102, 241, 0.03), rgba(139, 92, 246, 0.03));
+    }
+
+    .drop-zone.drag-over {
+        border-color: var(--primary);
+        background: linear-gradient(135deg, rgba(99, 102, 241, 0.1), rgba(139, 92, 246, 0.1));
+        transform: scale(1.02);
+    }
+
+    .drop-zone-icon {
+        font-size: 4rem;
+        color: var(--primary);
+        margin-bottom: 1rem;
+        animation: float 3s ease-in-out infinite;
+    }
+
+    @keyframes float {
+        0%, 100% { transform: translateY(0); }
+        50% { transform: translateY(-10px); }
+    }
+
+    .drop-zone h3 {
+        color: var(--dark);
+        margin-bottom: 0.5rem;
+    }
+
+    .drop-zone p {
+        color: var(--gray);
+        margin: 1rem 0;
+    }
+
+    .file-types {
+        font-size: 0.875rem;
+        color: var(--gray);
+        margin-top: 1rem;
+    }
+
+    .file-list {
+        margin-top: 2rem;
+        display: grid;
+        gap: 1rem;
+    }
+
+    .file-item {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 1rem 1.5rem;
+        background: var(--light-gray);
+        border-radius: 12px;
+        animation: slideIn 0.3s ease;
+    }
+
+    @keyframes slideIn {
+        from {
+            opacity: 0;
+            transform: translateX(-20px);
+        }
+        to {
+            opacity: 1;
+            transform: translateX(0);
+        }
+    }
+
+    .file-info {
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+        flex: 1;
+    }
+
+    .file-icon {
+        width: 40px;
+        height: 40px;
+        background: linear-gradient(135deg, var(--primary), var(--secondary));
+        border-radius: 8px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: white;
+        font-size: 1.25rem;
+    }
+
+    .file-details {
+        flex: 1;
+    }
+
+    .file-name {
+        font-weight: 600;
+        color: var(--dark);
+        margin-bottom: 0.25rem;
+    }
+
+    .file-size {
+        font-size: 0.875rem;
+        color: var(--gray);
+    }
+
+    .remove-btn {
+        background: var(--danger);
+        color: white;
+        border: none;
+        padding: 0.5rem 1rem;
+        border-radius: 8px;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        font-size: 0.875rem;
+    }
+
+    .remove-btn:hover {
+        background: #dc2626;
+        transform: scale(1.05);
+    }
+
+    .upload-btn {
+        width: 100%;
+        margin-top: 2rem;
+        padding: 1.25rem;
+        font-size: 1.1rem;
+    }
+
+    .upload-progress {
+        margin-top: 2rem;
+        text-align: center;
+    }
+
+    .progress-bar {
+        width: 100%;
+        height: 12px;
+        background: var(--light-gray);
+        border-radius: 10px;
+        overflow: hidden;
+        margin-bottom: 1rem;
+    }
+
+    .progress-fill {
+        height: 100%;
+        background: linear-gradient(90deg, var(--primary), var(--secondary));
+        width: 0%;
+        transition: width 0.3s ease;
+        border-radius: 10px;
+    }
+
+    .notification {
+        position: fixed;
+        top: 100px;
+        right: 2rem;
+        padding: 1rem 1.5rem;
+        border-radius: 12px;
+        box-shadow: var(--shadow-lg);
+        display: none;
+        animation: slideInRight 0.3s ease;
+        z-index: 1000;
+    }
+
+    @keyframes slideInRight {
+        from {
+            opacity: 0;
+            transform: translateX(100px);
+        }
+        to {
+            opacity: 1;
+            transform: translateX(0);
+        }
+    }
+
+    .notification.success {
+        background: var(--success);
+        color: white;
+    }
+
+    .notification.error {
+        background: var(--danger);
+        color: white;
+    }
+</style>
+
+<script>
+    const dropZone = document.getElementById('dropZone');
+    const fileInput = document.getElementById('fileInput');
+    const fileList = document.getElementById('fileList');
+    const uploadBtn = document.getElementById('uploadBtn');
+    const uploadProgress = document.getElementById('uploadProgress');
+    const progressFill = document.getElementById('progressFill');
+    const progressText = document.getElementById('progressText');
+    const notification = document.getElementById('notification');
+
+    let selectedFiles = [];
+
+    // Drag and drop handlers
+    dropZone.addEventListener('dragover', (e) => {
+        e.preventDefault();
+        dropZone.classList.add('drag-over');
+    });
+
+    dropZone.addEventListener('dragleave', () => {
+        dropZone.classList.remove('drag-over');
+    });
+
+    dropZone.addEventListener('drop', (e) => {
+        e.preventDefault();
+        dropZone.classList.remove('drag-over');
+        handleFiles(e.dataTransfer.files);
+    });
+
+    fileInput.addEventListener('change', (e) => {
+        handleFiles(e.target.files);
+    });
+
+    function handleFiles(files) {
+        selectedFiles = [...selectedFiles, ...Array.from(files)];
+        displayFiles();
+    }
+
+    function displayFiles() {
+        fileList.innerHTML = '';
+        selectedFiles.forEach((file, index) => {
+            const fileItem = document.createElement('div');
+            fileItem.className = 'file-item';
+            fileItem.innerHTML = `
+                <div class="file-info">
+                    <div class="file-icon">
+                        <i class="fas fa-file-${getFileIcon(file.name)}"></i>
+                    </div>
+                    <div class="file-details">
+                        <div class="file-name">${file.name}</div>
+                        <div class="file-size">${formatFileSize(file.size)}</div>
+                    </div>
+                </div>
+                <button class="remove-btn" onclick="removeFile(${index})">
+                    <i class="fas fa-times"></i> Remove
+                </button>
+            `;
+            fileList.appendChild(fileItem);
+        });
+
+        uploadBtn.style.display = selectedFiles.length > 0 ? 'block' : 'none';
+    }
+
+    function removeFile(index) {
+        selectedFiles.splice(index, 1);
+        displayFiles();
+    }
+
+    function getFileIcon(filename) {
+        const ext = filename.split('.').pop().toLowerCase();
+        const icons = {
+            'pdf': 'pdf',
+            'doc': 'word',
+            'docx': 'word',
+            'csv': 'csv',
+            'txt': 'alt',
+            'eml': 'envelope',
+            'msg': 'envelope'
+        };
+        return icons[ext] || 'alt';
+    }
+
+    function formatFileSize(bytes) {
+        if (bytes === 0) return '0 Bytes';
+        const k = 1024;
+        const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+        const i = Math.floor(Math.log(bytes) / Math.log(k));
+        return Math.round(bytes / Math.pow(k, i) * 100) / 100 + ' ' + sizes[i];
+    }
+
+    function showNotification(message, type) {
+        notification.textContent = message;
+        notification.className = `notification ${type}`;
+        notification.style.display = 'block';
+        setTimeout(() => {
+            notification.style.display = 'none';
+        }, 4000);
+    }
+
+    uploadBtn.addEventListener('click', async () => {
+        if (selectedFiles.length === 0) return;
+
+        const formData = new FormData();
+        selectedFiles.forEach(file => {
+            formData.append('files', file);
+        });
+
+        uploadProgress.style.display = 'block';
+        uploadBtn.disabled = true;
+
+        try {
+            const response = await fetch('/upload', {
+                method: 'POST',
+                body: formData
+            });
+
+            const result = await response.json();
+
+            if (result.success) {
+                progressFill.style.width = '100%';
+                progressText.textContent = 'Upload Complete!';
+                showNotification(result.message, 'success');
+                
+                setTimeout(() => {
+                    selectedFiles = [];
+                    displayFiles();
+                    uploadProgress.style.display = 'none';
+                    progressFill.style.width = '0%';
+                    uploadBtn.disabled = false;
+                }, 2000);
+            } else {
+                throw new Error(result.message);
+            }
+        } catch (error) {
+            showNotification('Upload failed: ' + error.message, 'error');
+            uploadProgress.style.display = 'none';
+            uploadBtn.disabled = false;
+        }
+    });
+
+    // Simulate progress
+    uploadBtn.addEventListener('click', () => {
+        let progress = 0;
+        const interval = setInterval(() => {
+            progress += 10;
+            progressFill.style.width = progress + '%';
+            if (progress >= 90) clearInterval(interval);
+        }, 200);
+    });
+</script>
+{% endblock %}

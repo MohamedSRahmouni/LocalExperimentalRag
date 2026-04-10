@@ -1,0 +1,154 @@
+{% extends "base.html" %}
+
+{% block title %}Home - Enterprise RAG{% endblock %}
+{% block nav_home %}active{% endblock %}
+
+{% block content %}
+<div class="card hero-section">
+    <div class="hero-content">
+        <h1><i class="fas fa-rocket"></i> Welcome to Enterprise RAG</h1>
+        <p class="hero-subtitle">Retrieval-Augmented Generation for Your Business Documents</p>
+        <p class="hero-description">
+            Transform your enterprise documents into intelligent, searchable knowledge. 
+            Upload your files and chat with your data using advanced AI technology.
+        </p>
+        <div class="hero-buttons">
+            <a href="/upload" class="btn btn-primary">
+                <i class="fas fa-upload"></i> Start Uploading
+            </a>
+            <a href="/prompt" class="btn btn-secondary">
+                <i class="fas fa-comments"></i> Start Chatting
+            </a>
+        </div>
+    </div>
+</div>
+
+<div class="features-grid">
+    <div class="feature-card">
+        <div class="feature-icon">
+            <i class="fas fa-file-upload"></i>
+        </div>
+        <h3>Easy Upload</h3>
+        <p>Support for PDF, DOCX, CSV, TXT, and email formats. Drag and drop your files effortlessly.</p>
+    </div>
+
+    <div class="feature-card">
+        <div class="feature-icon">
+            <i class="fas fa-brain"></i>
+        </div>
+        <h3>AI-Powered Search</h3>
+        <p>Leverage cutting-edge RAG technology to find precise answers from your documents.</p>
+    </div>
+
+    <div class="feature-card">
+        <div class="feature-icon">
+            <i class="fas fa-shield-alt"></i>
+        </div>
+        <h3>Secure & Private</h3>
+        <p>Your data stays protected with enterprise-grade security and privacy measures.</p>
+    </div>
+
+    <div class="feature-card">
+        <div class="feature-icon">
+            <i class="fas fa-bolt"></i>
+        </div>
+        <h3>Lightning Fast</h3>
+        <p>Get instant responses to your queries with optimized retrieval algorithms.</p>
+    </div>
+</div>
+
+<style>
+    .hero-section {
+        text-align: center;
+        padding: 4rem 2rem;
+       /*background: linear-gradient(135deg, rgba(99, 102, 241, 0.05), rgba(139, 92, 246, 0.05));*/
+    }
+
+    .hero-subtitle {
+        font-size: 1.25rem;
+        color: var(--gray);
+        margin-bottom: 1.5rem;
+        font-weight: 500;
+    }
+
+    .hero-description {
+        font-size: 1.1rem;
+        color: var(--gray);
+        max-width: 700px;
+        margin: 0 auto 2rem;
+        line-height: 1.8;
+    }
+
+    .hero-buttons {
+        display: flex;
+        gap: 1rem;
+        justify-content: center;
+        flex-wrap: wrap;
+    }
+
+    .features-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+        gap: 2rem;
+        margin-top: 2rem;
+    }
+
+    .feature-card {
+        background: white;
+        padding: 2rem;
+        border-radius: 20px;
+        box-shadow: var(--shadow);
+        transition: all 0.3s ease;
+        animation: fadeInUp 0.6s ease;
+        animation-fill-mode: both;
+    }
+
+    .feature-card:nth-child(1) { animation-delay: 0.1s; }
+    .feature-card:nth-child(2) { animation-delay: 0.2s; }
+    .feature-card:nth-child(3) { animation-delay: 0.3s; }
+    .feature-card:nth-child(4) { animation-delay: 0.4s; }
+
+    .feature-card:hover {
+        transform: translateY(-10px);
+        box-shadow: var(--shadow-lg);
+    }
+
+    .feature-icon {
+        width: 70px;
+        height: 70px;
+        background: linear-gradient(135deg, var(--primary), var(--secondary));
+        border-radius: 15px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin-bottom: 1.5rem;
+        font-size: 2rem;
+        color: white;
+    }
+
+    .feature-card h3 {
+        color: var(--dark);
+        margin-bottom: 0.75rem;
+        font-size: 1.25rem;
+    }
+
+    .feature-card p {
+        color: var(--gray);
+        line-height: 1.6;
+    }
+
+    @media (max-width: 768px) {
+        .hero-section {
+            padding: 2rem 1rem;
+        }
+
+        .hero-buttons {
+            flex-direction: column;
+        }
+
+        .features-grid {
+            grid-template-columns: 1fr;
+        }
+    }
+</style>
+{% endblock %}

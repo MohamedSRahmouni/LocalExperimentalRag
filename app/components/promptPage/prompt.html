@@ -1,0 +1,382 @@
+{% extends "base.html" %}
+
+{% block title %}Chat - Enterprise RAG{% endblock %}
+{% block nav_prompt %}active{% endblock %}
+
+{% block content %}
+<div class="chat-container">
+    <div class="card chat-card">
+        <div class="chat-header">
+            <h2><i class="fas fa-comments"></i> Chat with Your Documents</h2>
+            <p>Ask questions about your uploaded documents</p>
+        </div>
+
+        <div id="chatMessages" class="chat-messages">
+            <div class="welcome-message">
+                <div class="welcome-icon">
+                    <i class="fas fa-robot"></i>
+                </div>
+                <h3>Hello! I'm your AI assistant</h3>
+                <p>Ask me anything about your uploaded documents and I'll help you find the information you need.</p>
+            </div>
+        </div>
+
+        <div class="chat-input-container">
+            <div class="input-wrapper">
+                <input 
+                    type="text" 
+                    id="messageInput" 
+                    class="chat-input" 
+                    placeholder="Type your question here..."
+                    autocomplete="off"
+                >
+                <button id="sendBtn" class="send-btn">
+                    <i class="fas fa-paper-plane"></i>
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    .chat-container {
+        max-width: 1000px;
+        margin: 0 auto;
+    }
+
+    .chat-card {
+        height: calc(100vh - 200px);
+        display: flex;
+        flex-direction: column;
+        padding: 0;
+        overflow: hidden;
+    }
+
+    .chat-header {
+        padding: 2rem;
+        border-bottom: 2px solid var(--light-gray);
+        background: linear-gradient(135deg, rgba(99, 102, 241, 0.05), rgba(139, 92, 246, 0.05));
+    }
+
+    .chat-header h2 {
+        margin-bottom: 0.5rem;
+        color: var(--dark);
+    }
+
+    .chat-header p {
+        color: var(--gray);
+        margin: 0;
+    }
+
+    .chat-messages {
+        flex: 1;
+        overflow-y: auto;
+        padding: 2rem;
+        scroll-behavior: smooth;
+    }
+
+    .chat-messages::-webkit-scrollbar {
+        width: 8px;
+    }
+
+    .chat-messages::-webkit-scrollbar-track {
+        background: var(--light-gray);
+        border-radius: 10px;
+    }
+
+    .chat-messages::-webkit-scrollbar-thumb {
+        background: var(--primary);
+        border-radius: 10px;
+    }
+
+    .welcome-message {
+        text-align: center;
+        padding: 3rem 2rem;
+        color: var(--gray);
+    }
+
+    .welcome-icon {
+        width: 80px;
+        height: 80px;
+        background: linear-gradient(135deg, var(--primary), var(--secondary));
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin: 0 auto 1.5rem;
+        font-size: 2.5rem;
+        color: white;
+        animation: pulse 2s ease-in-out infinite;
+    }
+
+    @keyframes pulse {
+        0%, 100% { transform: scale(1); }
+        50% { transform: scale(1.05); }
+    }
+
+    .message {
+        display: flex;
+        margin-bottom: 1.5rem;
+        animation: messageSlide 0.3s ease;
+    }
+
+    @keyframes messageSlide {
+        from {
+            opacity: 0;
+            transform: translateY(20px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+
+    .message.user {
+        justify-content: flex-end;
+    }
+
+    .message-content {
+        max-width: 70%;
+        padding: 1rem 1.5rem;
+        border-radius: 18px;
+        position: relative;
+    }
+
+    .message.user .message-content {
+        background: linear-gradient(135deg, var(--primary), var(--secondary));
+        color: white;
+        border-bottom-right-radius: 4px;
+    }
+
+    .message.assistant .message-content {
+        background: var(--light-gray);
+        color: var(--dark);
+        border-bottom-left-radius: 4px;
+    }
+
+    .message-avatar {
+        width: 40px;
+        height: 40px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin: 0 0.75rem;
+        font-size: 1.25rem;
+        flex-shrink: 0;
+    }
+
+    .message.user .message-avatar {
+        background: linear-gradient(135deg, var(--primary), var(--secondary));
+        color: white;
+    }
+
+    .message.assistant .message-avatar {
+        background: var(--light-gray);
+        color: var(--primary);
+    }
+
+    .typing-indicator {
+        display: flex;
+        gap: 0.5rem;
+        padding: 1rem;
+    }
+
+    .typing-dot {
+        width: 8px;
+        height: 8px;
+        background: var(--gray);
+        border-radius: 50%;
+        animation: typing 1.4s infinite;
+    }
+
+    .typing-dot:nth-child(2) {
+        animation-delay: 0.2s;
+    }
+
+    .typing-dot:nth-child(3) {
+        animation-delay: 0.4s;
+    }
+
+    @keyframes typing {
+        0%, 60%, 100% {
+            transform: translateY(0);
+        }
+        30% {
+            transform: translateY(-10px);
+        }
+    }
+
+    .chat-input-container {
+        padding: 1.5rem 2rem;
+        border-top: 2px solid var(--light-gray);
+        background: white;
+    }
+
+    .input-wrapper {
+        display: flex;
+        gap: 1rem;
+        align-items: center;
+    }
+
+    .chat-input {
+        flex: 1;
+        padding: 1rem 1.5rem;
+        border: 2px solid var(--light-gray);
+        border-radius: 25px;
+        font-size: 1rem;
+        font-family: 'Inter', sans-serif;
+        transition: all 0.3s ease;
+        outline: none;
+    }
+
+    .chat-input:focus {
+        border-color: var(--primary);
+        box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
+    }
+
+    .send-btn {
+        width: 50px;
+        height: 50px;
+        border: none;
+        border-radius: 50%;
+        background: linear-gradient(135deg, var(--primary), var(--secondary));
+        color: white;
+        font-size: 1.25rem;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .send-btn:hover {
+        transform: scale(1.1) rotate(15deg);
+        box-shadow: 0 4px 15px rgba(99, 102, 241, 0.4);
+    }
+
+    .send-btn:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+        transform: none;
+    }
+
+    @media (max-width: 768px) {
+        .chat-card {
+            height: calc(100vh - 150px);
+        }
+
+        .message-content {
+            max-width: 85%;
+        }
+
+        .chat-header {
+            padding: 1.5rem;
+        }
+
+        .chat-messages {
+            padding: 1rem;
+        }
+    }
+</style>
+
+<script>
+    const chatMessages = document.getElementById('chatMessages');
+    const messageInput = document.getElementById('messageInput');
+    const sendBtn = document.getElementById('sendBtn');
+
+    function addMessage(content, isUser = false) {
+        const messageDiv = document.createElement('div');
+        messageDiv.className = `message ${isUser ? 'user' : 'assistant'}`;
+        
+        messageDiv.innerHTML = `
+            ${!isUser ? `<div class="message-avatar"><i class="fas fa-robot"></i></div>` : ''}
+            <div class="message-content">${content}</div>
+            ${isUser ? `<div class="message-avatar"><i class="fas fa-user"></i></div>` : ''}
+        `;
+        
+        // Remove welcome message if it exists
+        const welcomeMsg = chatMessages.querySelector('.welcome-message');
+        if (welcomeMsg) {
+            welcomeMsg.remove();
+        }
+        
+        chatMessages.appendChild(messageDiv);
+        chatMessages.scrollTop = chatMessages.scrollHeight;
+    }
+
+    function showTypingIndicator() {
+        const typingDiv = document.createElement('div');
+        typingDiv.className = 'message assistant';
+        typingDiv.id = 'typingIndicator';
+        typingDiv.innerHTML = `
+            <div class="message-avatar"><i class="fas fa-robot"></i></div>
+            <div class="message-content">
+                <div class="typing-indicator">
+                    <div class="typing-dot"></div>
+                    <div class="typing-dot"></div>
+                    <div class="typing-dot"></div>
+                </div>
+            </div>
+        `;
+        chatMessages.appendChild(typingDiv);
+        chatMessages.scrollTop = chatMessages.scrollHeight;
+    }
+
+    function removeTypingIndicator() {
+        const typingIndicator = document.getElementById('typingIndicator');
+        if (typingIndicator) {
+            typingIndicator.remove();
+        }
+    }
+
+    async function sendMessage() {
+        const message = messageInput.value.trim();
+        if (!message) return;
+
+        // Add user message
+        addMessage(message, true);
+        messageInput.value = '';
+        sendBtn.disabled = true;
+
+        // Show typing indicator
+        showTypingIndicator();
+
+        try {
+            const response = await fetch('/api/chat', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ message })
+            });
+
+            const data = await response.json();
+            
+            // Simulate delay for more natural feel
+            setTimeout(() => {
+                removeTypingIndicator();
+                addMessage(data.message, false);
+                sendBtn.disabled = false;
+                messageInput.focus();
+            }, 1000);
+
+        } catch (error) {
+            removeTypingIndicator();
+            addMessage('Sorry, there was an error processing your request. Please try again.', false);
+            sendBtn.disabled = false;
+        }
+    }
+
+    sendBtn.addEventListener('click', sendMessage);
+
+    messageInput.addEventListener('keypress', (e) => {
+        if (e.key === 'Enter') {
+            sendMessage();
+        }
+    });
+
+    // Focus input on load
+    messageInput.focus();
+</script>
+{% endblock %}
