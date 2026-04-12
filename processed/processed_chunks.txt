@@ -1,0 +1,262 @@
+
+================================================================================
+Processing Session
+================================================================================
+Timestamp: 2026-04-11 05:41:14
+Files: _Med  Rahmouni CV.pdf
+Model: sentence-transformers/all-MiniLM-L6-v2
+Device: CPU
+Chunking Method: semantic
+Total Chunks: 25
+================================================================================
+
+Chunk #1
+--------------------------------------------------------------------------------
+Length: 344 characters
+Sentences: 1
+Avg Similarity: None
+Model Type: sentence-transformer
+--------------------------------------------------------------------------------
+rahmouni mohamed salah ingenieur full-stack mohamed.s.rahmouni@gmail.com +216 55 751 134  resumé ingénieur logiciel full-stack avec 3 ans d'expérience dans l'écosystème .net, spécialisé dans la conception de backends évolutifs avec asp.net core, c#, entity framework et api rest, ainsi que de frontends modernes avec angular et next.js.
+================================================================================
+
+Chunk #2
+--------------------------------------------------------------------------------
+Length: 117 characters
+Sentences: 1
+Avg Similarity: None
+Model Type: sentence-transformer
+--------------------------------------------------------------------------------
+maîtrise des architectures propres, de l'authentification sécurisée et de l'intégration de sql server/postgresql.
+================================================================================
+
+Chunk #3
+--------------------------------------------------------------------------------
+Length: 153 characters
+Sentences: 1
+Avg Similarity: None
+Model Type: sentence-transformer
+--------------------------------------------------------------------------------
+passionné par l'intégration de fonctionnalités basées sur l'ia via des services pilotés par api pour créer des applications web plus intelligentes.
+================================================================================
+
+Chunk #4
+--------------------------------------------------------------------------------
+Length: 530 characters
+Sentences: 1
+Avg Similarity: None
+Model Type: sentence-transformer
+--------------------------------------------------------------------------------
+compétences techniques .net jenkins sql server monolothic architecture c# angular swagger postgresql microservice architecture python angularjs docker github cors js/ts nextjs kafka gitlab grpc expérience professionnelle ingenieur full stack - altisys, france (full remote) mar 2024 - present eagleact : solution de credit management et recouvrement automatisé (b2b) concevoir et développer de nouvelles fonctionnalités en fonction des besoins métiers, en garantissant la scalabilité et la maintenabilité de la plateforme.
+================================================================================
+
+Chunk #5
+--------------------------------------------------------------------------------
+Length: 150 characters
+Sentences: 1
+Avg Similarity: None
+Model Type: sentence-transformer
+--------------------------------------------------------------------------------
+analyser, corriger les anomalies et optimiser le système existant, en assurant une amélioration continue des performances et de la qualité du code.
+================================================================================
+
+Chunk #6
+--------------------------------------------------------------------------------
+Length: 151 characters
+Sentences: 1
+Avg Similarity: None
+Model Type: sentence-transformer
+--------------------------------------------------------------------------------
+créer, optimiser et maintenir des procédures stockées sous sql server, en veillant à la performance des requêtes et à l’intégrité des données.
+================================================================================
+
+Chunk #7
+--------------------------------------------------------------------------------
+Length: 140 characters
+Sentences: 1
+Avg Similarity: None
+Model Type: sentence-transformer
+--------------------------------------------------------------------------------
+refactoriser le code existant afin d’améliorer sa lisibilité, sa maintenabilité et sa conformité aux bonnes pratiques de développement.
+================================================================================
+
+Chunk #8
+--------------------------------------------------------------------------------
+Length: 120 characters
+Sentences: 1
+Avg Similarity: None
+Model Type: sentence-transformer
+--------------------------------------------------------------------------------
+réaliser des analyses techniques approfondies, proposer des solutions adaptées et participer aux choix d’architecture.
+================================================================================
+
+Chunk #9
+--------------------------------------------------------------------------------
+Length: 134 characters
+Sentences: 1
+Avg Similarity: None
+Model Type: sentence-transformer
+--------------------------------------------------------------------------------
+mettre en place et exécuter des tests (unitaires, fonctionnels, techniques) pour garantir la fiabilité et la qualité des livrables.
+================================================================================
+
+Chunk #10
+--------------------------------------------------------------------------------
+Length: 148 characters
+Sentences: 1
+Avg Similarity: None
+Model Type: sentence-transformer
+--------------------------------------------------------------------------------
+développer et gérer des flux de données via kafka streams, en assurant la transmission fiable et temps réel des événements entre les services.
+================================================================================
+
+Chunk #11
+--------------------------------------------------------------------------------
+Length: 118 characters
+Sentences: 1
+Avg Similarity: None
+Model Type: sentence-transformer
+--------------------------------------------------------------------------------
+superviser les logs et monitorer les flux kafka, afin de détecter et résoudre rapidement les incidents ou anomalies.
+================================================================================
+
+Chunk #12
+--------------------------------------------------------------------------------
+Length: 155 characters
+Sentences: 1
+Avg Similarity: None
+Model Type: sentence-transformer
+--------------------------------------------------------------------------------
+appliquer et faire respecter les règles de gestion et les standards de développement, incluant les bonnes pratiques de versioning et de qualité de code.
+================================================================================
+
+Chunk #13
+--------------------------------------------------------------------------------
+Length: 140 characters
+Sentences: 1
+Avg Similarity: None
+Model Type: sentence-transformer
+--------------------------------------------------------------------------------
+rédiger et maintenir la documentation technique, facilitant la compréhension, l’évolution et la maintenance du système par les équipes.
+================================================================================
+
+Chunk #14
+--------------------------------------------------------------------------------
+Length: 370 characters
+Sentences: 1
+Avg Similarity: None
+Model Type: sentence-transformer
+--------------------------------------------------------------------------------
+technologies : .net 4.7 ,angularjs, sql server, kafka, swagger, azure devops, restapi ingenieur full stack - iya soft , tunis dec 2023 - mar 2024 projet 1: transformation digitale du processus administratif pour un organisme de développement et de logement développer de nouvelles fonctionnalités en respectant les besoins fonctionnels et techniques de la plateforme.
+================================================================================
+
+Chunk #15
+--------------------------------------------------------------------------------
+Length: 127 characters
+Sentences: 1
+Avg Similarity: None
+Model Type: sentence-transformer
+--------------------------------------------------------------------------------
+corriger les bugs côté back-end et front-end, en assurant la stabilité, la performance et une bonne expérience utilisateur.
+================================================================================
+
+Chunk #16
+--------------------------------------------------------------------------------
+Length: 130 characters
+Sentences: 1
+Avg Similarity: None
+Model Type: sentence-transformer
+--------------------------------------------------------------------------------
+rédiger et maintenir la documentation technique, afin de faciliter la compréhension, l’évolution et la maintenance du système.
+================================================================================
+
+Chunk #17
+--------------------------------------------------------------------------------
+Length: 223 characters
+Sentences: 1
+Avg Similarity: None
+Model Type: sentence-transformer
+--------------------------------------------------------------------------------
+technologies : .net 7.0 mvc, microsoft sql server, jenkins, github, gitlab projet 2: e-learning (proof of concept): créer et développer de nouvelles fonctionnalités en adéquation avec les besoins métiers et techniques.
+================================================================================
+
+Chunk #18
+--------------------------------------------------------------------------------
+Length: 116 characters
+Sentences: 1
+Avg Similarity: None
+Model Type: sentence-transformer
+--------------------------------------------------------------------------------
+refondre et optimiser la base de données, en améliorant la structure, les performances et la gestion des données.
+================================================================================
+
+Chunk #19
+--------------------------------------------------------------------------------
+Length: 190 characters
+Sentences: 2
+Avg Similarity: 0.4846239387989044
+Model Type: sentence-transformer
+--------------------------------------------------------------------------------
+identifier et corriger les bugs, en assurant la stabilité et la fiabilité de l’application. optimiser le code existant pour améliorer la performance, la lisibilité et la maintenabilité.
+================================================================================
+
+Chunk #20
+--------------------------------------------------------------------------------
+Length: 139 characters
+Sentences: 1
+Avg Similarity: None
+Model Type: sentence-transformer
+--------------------------------------------------------------------------------
+implémenter des tests unitaires côté front-end, afin de garantir la qualité, la robustesse et la non- régression des fonctionnalités.
+================================================================================
+
+Chunk #21
+--------------------------------------------------------------------------------
+Length: 456 characters
+Sentences: 1
+Avg Similarity: None
+Model Type: sentence-transformer
+--------------------------------------------------------------------------------
+technologies : .net 4.8, angular13, microsoft sql server, azure devops, github ,restapi developpeur full stack - timsoft - tunis (stage fin d’etude) mai 2023 - nov 2023 conception et développement d'une plateforme de test et d'évaluation des compétences techniques concevoir et développer les modules( gestion des campagnes de recrutement, module statistique et kpi, module de passage d’entretien, module de mailing, gestion continue des utilisateurs).
+================================================================================
+
+Chunk #22
+--------------------------------------------------------------------------------
+Length: 164 characters
+Sentences: 1
+Avg Similarity: None
+Model Type: sentence-transformer
+--------------------------------------------------------------------------------
+concevoir et développer module statistique et kpi avec chart.js pour la visualisation des données implémenter la base de données avec postgresql using ef core .
+================================================================================
+
+Chunk #23
+--------------------------------------------------------------------------------
+Length: 165 characters
+Sentences: 2
+Avg Similarity: 0.2325369268655777
+Model Type: sentence-transformer
+--------------------------------------------------------------------------------
+développer front-end avec angular et du back-end avec .net . conception et implémentation d’un ide multi-langage intégré pour une plateforme de type coding game.
+================================================================================
+
+Chunk #24
+--------------------------------------------------------------------------------
+Length: 103 characters
+Sentences: 1
+Avg Similarity: None
+Model Type: sentence-transformer
+--------------------------------------------------------------------------------
+application des bonnes pratiques de développement : modularité, maintenance et évolutivité du code.
+================================================================================
+
+Chunk #25
+--------------------------------------------------------------------------------
+Length: 665 characters
+Sentences: 2
+Avg Similarity: 0.21256117522716522
+Model Type: sentence-transformer
+--------------------------------------------------------------------------------
+tester et optimiser des performances de la plateforme. technologies : .net6, angular13, postgresql, azure devops, github, restapi education diplome national d’ingenieur esprit – private school of engineering and technology tunis | 2021–2023 master en systèmes d’information et sécurité des infrastructures (m1) institut supérieur d’informatique | tunis 2020-2021 licence appliqué en administration des reseaux et services institut supérieur d’informatique | tunis 2017-2020 informations complémentaires langues : anglais ( b2 ), français (c2), allemand (a2), arabe (c2) activités : chef de projet | enactus isi 2019-2020, membre actif enactus isi 2017-2019
+================================================================================
+
