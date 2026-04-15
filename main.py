@@ -43,7 +43,7 @@ from app.core.logging_config import setup_logging
 from app.core.startup import startup_event, shutdown_event
 
 # Import routers
-from app.api.routes import pages, upload, chat, stats, weaviate
+from app.api.routes import pages, upload, chat, stats, weaviate, retrieve 
 
 # ============================================================================
 # SETUP
@@ -81,6 +81,7 @@ app.include_router(upload.router, prefix="/upload", tags=["Upload"])
 app.include_router(chat.router, prefix="/api", tags=["Chat"])
 app.include_router(stats.router, prefix="/api", tags=["Statistics"])
 app.include_router(weaviate.router, prefix="/api/weaviate", tags=["Weaviate Admin"])
+app.include_router(retrieve.router, prefix="/api", tags=["Retrieval"])
 
 # ============================================================================
 # MAIN

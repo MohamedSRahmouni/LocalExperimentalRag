@@ -43,7 +43,7 @@ nltk==3.8.1
 easyocr==1.7.1
 
 # --- Vector Database ---
-weaviate-client==4.7.1
+weaviate-client==4.4.0
 onnxruntime==1.17.1
 
 # --- HTTP & Networking (Fixed for Progress Bar issues) ---

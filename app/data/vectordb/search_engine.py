@@ -59,7 +59,8 @@ class SearchEngine:
                 logger.error(f"Collection '{self.class_name}' not found")
                 return []
             
-            # Build query
+            # ✅ FIX: Nouvelle syntaxe Weaviate v4
+            # Build query - NO .do() method anymore!
             query = collection.query.near_vector(
                 near_vector=query_vector,
                 limit=top_k,
@@ -72,26 +73,42 @@ class SearchEngine:
                 if where_filter:
                     query = query.with_where(where_filter)
             
-            # Execute search
-            response = query.do()
+            # ✅ FIX: Execute query directly (no .do())
+            response = query
             
             # Process results
             results = []
-            for obj in response.objects:
-                # Convert distance to similarity (certainty is already 0-1)
-                certainty = obj.metadata.certainty if hasattr(obj.metadata, 'certainty') else 0.5
+            
+            # ✅ FIX: Iterate over response.objects directly
+            if hasattr(response, 'objects'):
+                objects = response.objects
+            else:
+                objects = []
+            
+            for obj in objects:
+                # Get certainty/distance
+                certainty = 0.5  # Default
+                distance = None
+                
+                if hasattr(obj, 'metadata'):
+                    if hasattr(obj.metadata, 'certainty'):
+                        certainty = obj.metadata.certainty
+                    if hasattr(obj.metadata, 'distance'):
+                        distance = obj.metadata.distance
                 
                 # Filter by minimum score
                 if certainty < min_score:
                     continue
                 
-                props = obj.properties
+                # Get properties
+                props = obj.properties if hasattr(obj, 'properties') else {}
+                
                 result = {
                     "chunk_id": props.get("chunk_id"),
                     "text": props.get("text"),
                     "score": certainty,
                     "similarity": certainty,
-                    "distance": obj.metadata.distance if hasattr(obj.metadata, 'distance') else None,
+                    "distance": distance,
                     "metadata": {
                         "filename": props.get("filename"),
                         "file_type": props.get("file_type"),
@@ -197,7 +214,7 @@ class SearchEngine:
             if not collection:
                 return []
             
-            # Hybrid query
+            # ✅ FIX: Hybrid query - nouvelle syntaxe
             query = collection.query.hybrid(
                 query=query_text,
                 vector=query_vector,
@@ -212,17 +229,27 @@ class SearchEngine:
                 if where_filter:
                     query = query.with_where(where_filter)
             
-            # Execute
-            response = query.do()
+            # ✅ FIX: Execute directly
+            response = query
             
             results = []
-            for obj in response.objects:
-                score = obj.metadata.score if hasattr(obj.metadata, 'score') else 0.5
+            
+            # ✅ FIX: Iterate directly
+            if hasattr(response, 'objects'):
+                objects = response.objects
+            else:
+                objects = []
+            
+            for obj in objects:
+                score = 0.5
+                if hasattr(obj, 'metadata') and hasattr(obj.metadata, 'score'):
+                    score = obj.metadata.score
                 
                 if score < min_score:
                     continue
                 
-                props = obj.properties
+                props = obj.properties if hasattr(obj, 'properties') else {}
+                
                 result = {
                     "chunk_id": props.get("chunk_id"),
                     "text": props.get("text"),
@@ -274,18 +301,23 @@ class SearchEngine:
             if not collection:
                 return []
             
+            # ✅ FIX: Nouvelle syntaxe pour fetch_objects
+            from weaviate.classes.query import Filter
+            
             response = collection.query.fetch_objects(
                 limit=limit,
-                filters={
-                    "path": ["filename"],
-                    "operator": "Equal",
-                    "valueText": filename
-                }
+                filters=Filter.by_property("filename").equal(filename)
             )
             
             results = []
-            for obj in response.objects:
-                props = obj.properties
+            
+            if hasattr(response, 'objects'):
+                objects = response.objects
+            else:
+                objects = []
+            
+            for obj in objects:
+                props = obj.properties if hasattr(obj, 'properties') else {}
                 results.append({
                     "chunk_id": props.get("chunk_id"),
                     "text": props.get("text"),
@@ -305,6 +337,8 @@ class SearchEngine:
             
         except Exception as e:
             logger.error(f"Error searching by filename: {str(e)}")
+            import traceback
+            traceback.print_exc()
             return []
     
     def get_random_samples(self, count: int = 5) -> List[Dict[str, Any]]:
@@ -325,11 +359,18 @@ class SearchEngine:
             if not collection:
                 return []
             
+            # ✅ FIX: Nouvelle syntaxe
             response = collection.query.fetch_objects(limit=count)
             
             results = []
-            for obj in response.objects:
-                props = obj.properties
+            
+            if hasattr(response, 'objects'):
+                objects = response.objects
+            else:
+                objects = []
+            
+            for obj in objects:
+                props = obj.properties if hasattr(obj, 'properties') else {}
                 results.append({
                     "chunk_id": props.get("chunk_id"),
                     "text": props.get("text"),
@@ -346,64 +387,52 @@ class SearchEngine:
             logger.error(f"Error getting random samples: {str(e)}")
             return []
     
-    def _build_filters(self, filters: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    def _build_filters(self, filters: Dict[str, Any]) -> Optional[Any]:
         """
-        Build Weaviate filter clauses
+        Build Weaviate filter clauses (v4 syntax)
         
         Args:
-            filters: Filter dict (e.g., {"filename": "doc.pdf", "file_type": "pdf"})
+            filters: Filter dict
             
         Returns:
-            Weaviate where filter
+            Weaviate Filter object
         """
         if not filters:
             return None
         
-        conditions = []
-        
-        for key, value in filters.items():
-            if key == "filename":
-                conditions.append({
-                    "path": ["filename"],
-                    "operator": "Equal",
-                    "valueText": value
-                })
-            elif key == "file_type":
-                conditions.append({
-                    "path": ["file_type"],
-                    "operator": "Equal",
-                    "valueText": value
-                })
-            elif key == "model_type":
-                conditions.append({
-                    "path": ["model_type"],
-                    "operator": "Equal",
-                    "valueText": value
-                })
-            elif key == "min_length":
-                conditions.append({
-                    "path": ["text_length"],
-                    "operator": "GreaterThanEqual",
-                    "valueInt": value
-                })
-            elif key == "max_length":
-                conditions.append({
-                    "path": ["text_length"],
-                    "operator": "LessThanEqual",
-                    "valueInt": value
-                })
-        
-        if not conditions:
+        try:
+            from weaviate.classes.query import Filter
+            
+            conditions = []
+            
+            for key, value in filters.items():
+                if key == "filename":
+                    conditions.append(Filter.by_property("filename").equal(value))
+                elif key == "file_type":
+                    conditions.append(Filter.by_property("file_type").equal(value))
+                elif key == "model_type":
+                    conditions.append(Filter.by_property("model_type").equal(value))
+                elif key == "min_length":
+                    conditions.append(Filter.by_property("text_length").greater_or_equal(value))
+                elif key == "max_length":
+                    conditions.append(Filter.by_property("text_length").less_or_equal(value))
+            
+            if not conditions:
+                return None
+            
+            if len(conditions) == 1:
+                return conditions[0]
+            
+            # Multiple conditions - use AND
+            result = conditions[0]
+            for cond in conditions[1:]:
+                result = result & cond
+            
+            return result
+            
+        except Exception as e:
+            logger.error(f"Error building filters: {e}")
             return None
-        
-        if len(conditions) == 1:
-            return conditions[0]
-        
-        # Multiple conditions - use AND
-        return {
-            "operator": "And",
-            "operands": conditions
-        }
     
     def get_similar_chunks(
         self,
@@ -424,6 +453,8 @@ class SearchEngine:
             return []
         
         try:
+            from weaviate.classes.query import Filter
+            
             collection = self.client.get_collection(self.class_name)
             if not collection:
                 return []
@@ -431,15 +462,11 @@ class SearchEngine:
             # First, get the reference chunk and its vector
             response = collection.query.fetch_objects(
                 limit=1,
-                filters={
-                    "path": ["chunk_id"],
-                    "operator": "Equal",
-                    "valueText": chunk_id
-                },
+                filters=Filter.by_property("chunk_id").equal(chunk_id),
                 include_vector=True
             )
             
-            if not response.objects:
+            if not hasattr(response, 'objects') or not response.objects:
                 logger.warning(f"Chunk not found: {chunk_id}")
                 return []
             
