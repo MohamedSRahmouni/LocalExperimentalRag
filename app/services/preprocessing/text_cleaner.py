@@ -115,27 +115,40 @@ class TextCleaner:
         logger.info(f"Removed {len(texts) - len(unique_texts)} duplicate texts")
         return unique_texts
     
-    def is_valid_text(self, text: str, min_length: int = 10) -> bool:
-        """Check if text is valid and meaningful"""
+    def is_valid_text(self, text: str, min_length: int = 5) -> bool:  # ✅ Changed from 10 to 5
+        """
+        Check if text is valid and meaningful
+        
+        Args:
+            text: Text to validate
+            min_length: Minimum length (lowered to 5 for tolerance)
+            
+        Returns:
+            True if valid, False otherwise
+        """
         if not text or not isinstance(text, str):
             return False
         
-        cleaned = self.clean_text(text)
+        cleaned = text.strip()
         
-        # Too short
+        # Very permissive minimum length
         if len(cleaned) < min_length:
+            logger.debug(f"Text too short: {len(cleaned)} < {min_length}")
             return False
         
-        # Too much repetition (spam detection)
-        if self.is_repetitive(cleaned):
+        # Must contain SOME alphabetic or numeric characters
+        if not any(c.isalnum() for c in cleaned):
+            logger.debug("Text contains no alphanumeric characters")
             return False
         
-        # Must contain some alphabetic characters
-        if not any(c.isalpha() for c in cleaned):
-            return False
+        # ✅ REMOVED: Repetition check for short texts
+        if len(cleaned) >= 50:  # Only check repetition for longer texts
+            if self.is_repetitive(cleaned):
+                logger.debug("Text is repetitive")
+                return False
         
         return True
-    
+
     def is_repetitive(self, text: str, threshold: float = 0.7) -> bool:
         """Detect if text is overly repetitive"""
         words = text.split()

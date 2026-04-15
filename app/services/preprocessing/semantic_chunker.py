@@ -268,12 +268,24 @@ class SemanticChunker:
         if not self.is_model_available():
             logger.error("❌ Embedder not available")
             raise RuntimeError("Embedder not available. Cannot perform semantic chunking.")
+        logger.info(f"🔍 Chunking text: {len(text)} chars, min={min_chunk_size}, max={max_chunk_size}")
+    
+        sentences = self._split_into_sentences(text)
         
+        # ✅ ADD THIS
+        logger.info(f"🔍 Split into {len(sentences)} sentences")
+
         sentences = self._split_into_sentences(text)
         if not sentences:
             logger.warning("No sentences found in text")
             return []
         
+        if len(sentences) == 1:
+            logger.info(f"🔍 Only 1 sentence found, length={len(sentences[0])}")
+            if len(sentences[0]) < min_chunk_size:
+                logger.warning(f"❌ Single sentence too short: {len(sentences[0])} < {min_chunk_size}")
+                return []
+            
         model_info = self.embedder.get_model_info()
         device = "gpu" if self.use_gpu else "cpu"
         

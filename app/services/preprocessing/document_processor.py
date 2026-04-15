@@ -207,63 +207,188 @@ class DocumentProcessor:
         dynamic_threshold: bool = False
     ) -> List[Dict[str, Any]]:
         """
-        Apply semantic chunking using the external SemanticChunker
+        Apply semantic chunking with adaptive behavior for short texts
         
         Args:
             text: Text to chunk
             similarity_threshold: Similarity threshold for chunking
-            min_chunk_size: Minimum chunk size
+            min_chunk_size: Minimum chunk size (will be adapted for short texts)
             max_chunk_size: Maximum chunk size
             dynamic_threshold: Whether to dynamically adjust threshold
             
         Returns:
-            List of chunks with metadata
+            List of chunks with metadata (never empty if text has content)
         """
-        if self.chunking_method == "semantic" and self.semantic_chunker.is_model_available():
-            return self.semantic_chunker.chunk_by_similarity_with_metadata(
-                text,
-                threshold=similarity_threshold,
-                min_chunk_size=min_chunk_size,
-                max_chunk_size=max_chunk_size,
-                dynamic_threshold=dynamic_threshold
+        text_length = len(text.strip())
+        
+        logger.info(f"🔍 Text length: {text_length} characters")
+        logger.info(f"🔍 Original min/max chunk size: {min_chunk_size}/{max_chunk_size}")
+        
+        # ================================================================
+        # ADAPTIVE STRATEGY 1: Very short text (< 50 chars)
+        # Just return the whole text as one chunk
+        # ================================================================
+        if text_length < 50:
+            logger.info(f"📝 Very short text ({text_length} chars), returning as single chunk")
+            return [{
+                'text': text.strip(),
+                'similarity_score': None,
+                'min_similarity': None,
+                'max_similarity': None,
+                'sentence_count': 1,
+                'length': text_length,
+                'model_type': 'simple',
+                'model_name': 'adaptive-fallback',
+                'device': 'cpu'
+            }]
+        
+        # ================================================================
+        # ADAPTIVE STRATEGY 2: Short text (50-200 chars)
+        # Adjust chunk size to be more permissive
+        # ================================================================
+        if text_length < 200:
+            logger.info(f"📝 Short text ({text_length} chars), using adapted chunking")
+            adapted_min_size = max(20, text_length // 3)  # At least 20 chars, or 1/3 of text
+            adapted_max_size = text_length
+            logger.info(f"🔧 Adapted chunk size: {adapted_min_size}/{adapted_max_size}")
+            
+            chunks = self._simple_chunk_text(
+                text, 
+                chunk_size=adapted_max_size,
+                overlap=20,
+                min_chunk_size=adapted_min_size
             )
-        else:
-            # Fallback to simple chunking
-            logger.debug("Semantic chunking not available, using fallback method")
-            chunks = self._simple_chunk_text(text, max_chunk_size)
+            
             return [
                 {
                     'text': chunk,
                     'similarity_score': None,
                     'min_similarity': None,
                     'max_similarity': None,
-                    'sentence_count': 0,
-                    'length': len(chunk)
+                    'sentence_count': chunk.count('.') + chunk.count('!') + chunk.count('?'),
+                    'length': len(chunk),
+                    'model_type': 'simple-adaptive',
+                    'model_name': 'adaptive-fallback',
+                    'device': 'cpu'
                 }
-                for chunk in chunks
+                for chunk in chunks if chunk.strip()
             ]
-    
+        
+        # ================================================================
+        # ADAPTIVE STRATEGY 3: Medium text (200-500 chars)
+        # Use semantic if available, but with relaxed constraints
+        # ================================================================
+        if text_length < 500:
+            logger.info(f"📝 Medium text ({text_length} chars), using relaxed semantic chunking")
+            adapted_min_size = max(50, text_length // 5)
+            adapted_max_size = max(200, text_length // 2)
+        else:
+            # Use original settings for longer texts
+            adapted_min_size = min_chunk_size
+            adapted_max_size = max_chunk_size
+        
+        # ================================================================
+        # STRATEGY 4: Try semantic chunking (for medium to long texts)
+        # ================================================================
+        if self.chunking_method == "semantic" and self.semantic_chunker.is_model_available():
+            try:
+                logger.info(f"🤖 Using semantic chunking with adapted sizes: {adapted_min_size}/{adapted_max_size}")
+                
+                chunks = self.semantic_chunker.chunk_by_similarity_with_metadata(
+                    text,
+                    threshold=similarity_threshold,
+                    min_chunk_size=adapted_min_size,
+                    max_chunk_size=adapted_max_size,
+                    dynamic_threshold=dynamic_threshold
+                )
+                
+                if chunks:
+                    logger.info(f"✅ Semantic chunker returned {len(chunks)} chunks")
+                    return chunks
+                else:
+                    logger.warning(f"⚠️  Semantic chunker returned 0 chunks, falling back to simple chunking")
+                    
+            except Exception as e:
+                logger.error(f"❌ Semantic chunking exception: {str(e)}")
+                import traceback
+                traceback.print_exc()
+                logger.info("Falling back to simple chunking...")
+        
+        # ================================================================
+        # FALLBACK: Simple chunking (always works)
+        # ================================================================
+        logger.info(f"📋 Using simple chunking as fallback")
+        chunks = self._simple_chunk_text(
+            text,
+            chunk_size=adapted_max_size,
+            overlap=min(100, adapted_max_size // 5),
+            min_chunk_size=max(20, adapted_min_size // 2)  # Very permissive minimum
+        )
+        
+        result = [
+            {
+                'text': chunk,
+                'similarity_score': None,
+                'min_similarity': None,
+                'max_similarity': None,
+                'sentence_count': chunk.count('.') + chunk.count('!') + chunk.count('?'),
+                'length': len(chunk),
+                'model_type': 'simple-fallback',
+                'model_name': 'regex-chunker',
+                'device': 'cpu'
+            }
+            for chunk in chunks if chunk.strip()
+        ]
+        
+        # ================================================================
+        # SAFETY NET: If still no chunks, return the whole text
+        # ================================================================
+        if not result:
+            logger.warning("⚠️  All chunking failed, returning entire text as single chunk")
+            result = [{
+                'text': text.strip(),
+                'similarity_score': None,
+                'min_similarity': None,
+                'max_similarity': None,
+                'sentence_count': text.count('.') + text.count('!') + text.count('?'),
+                'length': text_length,
+                'model_type': 'emergency-fallback',
+                'model_name': 'whole-text',
+                'device': 'cpu'
+            }]
+        
+        logger.info(f"✅ Final result: {len(result)} chunk(s)")
+        return result
+
     def _simple_chunk_text(
         self,
         text: str,
         chunk_size: int = 1000,
         overlap: int = 200,
-        min_chunk_size: int = 100
+        min_chunk_size: int = 20  # ✅ Changed from 100 to 20
     ) -> List[str]:
         """
-        Simple chunking method (fallback)
+        Simple chunking method (fallback) - now more permissive
         
         Args:
             text: Text to chunk
             chunk_size: Target size of each chunk
             overlap: Number of characters to overlap
-            min_chunk_size: Minimum chunk size
+            min_chunk_size: Minimum chunk size (lowered to 20)
             
         Returns:
             List of text chunks
         """
+        text = text.strip()
+        
+        # If text is shorter than chunk_size, return as-is
         if len(text) <= chunk_size:
-            return [text] if self.text_cleaner.is_valid_text(text, min_length=min_chunk_size) else []
+            if len(text) >= min_chunk_size:
+                return [text]
+            else:
+                # Even if below min_chunk_size, return it anyway
+                logger.info(f"⚠️  Text shorter than min_chunk_size ({len(text)} < {min_chunk_size}), but returning anyway")
+                return [text] if text else []
         
         chunks = []
         start = 0
@@ -271,6 +396,7 @@ class DocumentProcessor:
         while start < len(text):
             end = start + chunk_size
             
+            # Try to find a sentence boundary
             if end < len(text):
                 search_start = max(start, end - 100)
                 search_end = min(len(text), end + 100)
@@ -291,13 +417,20 @@ class DocumentProcessor:
             
             chunk = text[start:end].strip()
             
-            if chunk and self.text_cleaner.is_valid_text(chunk, min_length=min_chunk_size):
+            # ✅ CHANGED: Accept chunk even if below min_chunk_size
+            if chunk:
                 chunks.append(chunk)
             
+            # Move start position
             if end - overlap <= start:
                 start = end
             else:
                 start = end - overlap
+        
+        # ✅ SAFETY: If no chunks created, return whole text
+        if not chunks and text:
+            logger.warning("Simple chunking produced no chunks, returning whole text")
+            return [text]
         
         return chunks
     
