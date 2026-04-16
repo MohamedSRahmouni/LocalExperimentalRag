@@ -7,8 +7,14 @@
 <div class="chat-container">
     <div class="card chat-card">
         <div class="chat-header">
-            <h2><i class="fas fa-comments"></i> Chat with Your Documents</h2>
-            <p>Ask questions about your uploaded documents</p>
+            <div class="header-content">
+                <h2><i class="fas fa-comments"></i> Chat with Your Documents</h2>
+                <p>Ask questions about your uploaded documents</p>
+            </div>
+            <div class="status-badge" id="statusBadge">
+                <div class="status-indicator"></div>
+                <span id="statusText">Connecting...</span>
+            </div>
         </div>
 
         <div id="chatMessages" class="chat-messages">
@@ -18,6 +24,14 @@
                 </div>
                 <h3>Hello! I'm your AI assistant</h3>
                 <p>Ask me anything about your uploaded documents and I'll help you find the information you need.</p>
+                <div class="quick-tips">
+                    <p><strong>💡 Tips:</strong></p>
+                    <ul>
+                        <li>Ask specific questions about your documents</li>
+                        <li>I'll show you the sources I used</li>
+                        <li>You can have a conversation with follow-up questions</li>
+                    </ul>
+                </div>
             </div>
         </div>
 
@@ -33,6 +47,11 @@
                 <button id="sendBtn" class="send-btn">
                     <i class="fas fa-paper-plane"></i>
                 </button>
+            </div>
+            <div class="input-info">
+                <span id="modelInfo">Model: Loading...</span>
+                <span class="divider">•</span>
+                <span id="modeInfo">Mode: Loading...</span>
             </div>
         </div>
     </div>
@@ -53,19 +72,56 @@
     }
 
     .chat-header {
-        padding: 2rem;
+        padding: 1.5rem 2rem;
         border-bottom: 2px solid var(--light-gray);
         background: linear-gradient(135deg, rgba(99, 102, 241, 0.05), rgba(139, 92, 246, 0.05));
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
     }
 
-    .chat-header h2 {
+    .header-content h2 {
         margin-bottom: 0.5rem;
         color: var(--dark);
     }
 
-    .chat-header p {
+    .header-content p {
         color: var(--gray);
         margin: 0;
+        font-size: 0.9rem;
+    }
+
+    .status-badge {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        padding: 0.5rem 1rem;
+        background: white;
+        border-radius: 20px;
+        border: 2px solid var(--light-gray);
+        font-size: 0.85rem;
+    }
+
+    .status-indicator {
+        width: 10px;
+        height: 10px;
+        border-radius: 50%;
+        background: #10b981;
+        animation: pulse 2s ease-in-out infinite;
+    }
+
+    .status-indicator.warning {
+        background: #f59e0b;
+    }
+
+    .status-indicator.error {
+        background: #ef4444;
+        animation: none;
+    }
+
+    @keyframes pulse {
+        0%, 100% { opacity: 1; transform: scale(1); }
+        50% { opacity: 0.7; transform: scale(0.95); }
     }
 
     .chat-messages {
@@ -109,9 +165,42 @@
         animation: pulse 2s ease-in-out infinite;
     }
 
-    @keyframes pulse {
-        0%, 100% { transform: scale(1); }
-        50% { transform: scale(1.05); }
+    .quick-tips {
+        margin-top: 2rem;
+        text-align: left;
+        max-width: 500px;
+        margin-left: auto;
+        margin-right: auto;
+        padding: 1.5rem;
+        background: white;
+        border-radius: 12px;
+        border: 2px solid var(--light-gray);
+    }
+
+    .quick-tips p {
+        margin-bottom: 0.75rem;
+        color: var(--dark);
+    }
+
+    .quick-tips ul {
+        list-style: none;
+        padding: 0;
+        margin: 0;
+    }
+
+    .quick-tips li {
+        padding: 0.5rem 0;
+        color: var(--gray);
+        padding-left: 1.5rem;
+        position: relative;
+    }
+
+    .quick-tips li:before {
+        content: "✓";
+        position: absolute;
+        left: 0;
+        color: var(--primary);
+        font-weight: bold;
     }
 
     .message {
@@ -140,6 +229,7 @@
         padding: 1rem 1.5rem;
         border-radius: 18px;
         position: relative;
+        line-height: 1.6;
     }
 
     .message.user .message-content {
@@ -176,6 +266,48 @@
         color: var(--primary);
     }
 
+    /* Sources styling */
+    .sources-container {
+        margin-top: 1rem;
+        padding-top: 1rem;
+        border-top: 1px solid rgba(0,0,0,0.1);
+    }
+
+    .sources-title {
+        font-size: 0.85rem;
+        font-weight: 600;
+        color: var(--gray);
+        margin-bottom: 0.5rem;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+
+    .source-item {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 0.5rem;
+        background: white;
+        border-radius: 8px;
+        margin-bottom: 0.5rem;
+        font-size: 0.85rem;
+    }
+
+    .source-name {
+        color: var(--dark);
+        font-weight: 500;
+    }
+
+    .source-badge {
+        background: var(--primary);
+        color: white;
+        padding: 0.25rem 0.75rem;
+        border-radius: 12px;
+        font-size: 0.75rem;
+        font-weight: 600;
+    }
+
     .typing-indicator {
         display: flex;
         gap: 0.5rem;
@@ -208,7 +340,7 @@
     }
 
     .chat-input-container {
-        padding: 1.5rem 2rem;
+        padding: 1rem 2rem 1.5rem;
         border-top: 2px solid var(--light-gray);
         background: white;
     }
@@ -217,6 +349,7 @@
         display: flex;
         gap: 1rem;
         align-items: center;
+        margin-bottom: 0.5rem;
     }
 
     .chat-input {
@@ -261,9 +394,36 @@
         transform: none;
     }
 
+    .input-info {
+        display: flex;
+        gap: 0.75rem;
+        font-size: 0.75rem;
+        color: var(--gray);
+        padding: 0 0.5rem;
+    }
+
+    .divider {
+        color: var(--light-gray);
+    }
+
+    .error-message {
+        background: #fee2e2;
+        color: #dc2626;
+        padding: 1rem 1.5rem;
+        border-radius: 12px;
+        border: 1px solid #fecaca;
+        margin-bottom: 1rem;
+    }
+
     @media (max-width: 768px) {
         .chat-card {
             height: calc(100vh - 150px);
+        }
+
+        .chat-header {
+            flex-direction: column;
+            align-items: flex-start;
+            gap: 1rem;
         }
 
         .message-content {
@@ -277,6 +437,11 @@
         .chat-messages {
             padding: 1rem;
         }
+
+        .input-info {
+            flex-direction: column;
+            gap: 0.25rem;
+        }
     }
 </style>
 
@@ -284,14 +449,80 @@
     const chatMessages = document.getElementById('chatMessages');
     const messageInput = document.getElementById('messageInput');
     const sendBtn = document.getElementById('sendBtn');
+    const statusBadge = document.getElementById('statusBadge');
+    const statusText = document.getElementById('statusText');
+    const statusIndicator = statusBadge.querySelector('.status-indicator');
+    const modelInfo = document.getElementById('modelInfo');
+    const modeInfo = document.getElementById('modeInfo');
 
-    function addMessage(content, isUser = false) {
+    let conversationHistory = [];
+
+    // Check RAG status on load
+    async function checkRAGStatus() {
+        try {
+            const response = await fetch('/api/rag/status');
+            const data = await response.json();
+            
+            if (data.lm_studio_available) {
+                statusText.textContent = 'RAG Active';
+                statusIndicator.classList.remove('warning', 'error');
+                modelInfo.textContent = `Model: ${data.model || 'Unknown'}`;
+                modeInfo.textContent = 'Mode: Full RAG';
+                modeInfo.style.color = '#10b981';
+            } else if (data.retrieval_available) {
+                statusText.textContent = 'Retrieval Only';
+                statusIndicator.classList.add('warning');
+                statusIndicator.classList.remove('error');
+                modelInfo.textContent = 'Model: N/A';
+                modeInfo.textContent = 'Mode: Retrieval-only';
+                modeInfo.style.color = '#f59e0b';
+            } else {
+                statusText.textContent = 'Limited';
+                statusIndicator.classList.add('error');
+                statusIndicator.classList.remove('warning');
+                modelInfo.textContent = 'Model: N/A';
+                modeInfo.textContent = 'Mode: Limited';
+                modeInfo.style.color = '#ef4444';
+            }
+        } catch (error) {
+            statusText.textContent = 'Connection Error';
+            statusIndicator.classList.add('error');
+            modelInfo.textContent = 'Model: Unavailable';
+            modeInfo.textContent = 'Mode: Error';
+        }
+    }
+
+    // Check status on load
+    checkRAGStatus();
+
+    function addMessage(content, isUser = false, sources = null) {
         const messageDiv = document.createElement('div');
         messageDiv.className = `message ${isUser ? 'user' : 'assistant'}`;
         
+        let sourcesHTML = '';
+        if (sources && sources.length > 0) {
+            sourcesHTML = `
+                <div class="sources-container">
+                    <div class="sources-title">
+                        <i class="fas fa-book"></i>
+                        Sources utilisées:
+                    </div>
+                    ${sources.map(source => `
+                        <div class="source-item">
+                            <span class="source-name">${source.source}</span>
+                            <span class="source-badge">${(source.relevance * 100).toFixed(0)}%</span>
+                        </div>
+                    `).join('')}
+                </div>
+            `;
+        }
+        
         messageDiv.innerHTML = `
             ${!isUser ? `<div class="message-avatar"><i class="fas fa-robot"></i></div>` : ''}
-            <div class="message-content">${content}</div>
+            <div class="message-content">
+                ${content}
+                ${sourcesHTML}
+            </div>
             ${isUser ? `<div class="message-avatar"><i class="fas fa-user"></i></div>` : ''}
         `;
         
@@ -338,45 +569,75 @@
         addMessage(message, true);
         messageInput.value = '';
         sendBtn.disabled = true;
+        messageInput.disabled = true;
 
         // Show typing indicator
         showTypingIndicator();
 
         try {
-            const response = await fetch('/api/chat', {
+            // Use RAG endpoint
+            const response = await fetch('/api/ask', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
                 },
-                body: JSON.stringify({ message })
+                body: JSON.stringify({ 
+                    question: message,
+                    conversation_history: conversationHistory
+                })
             });
 
             const data = await response.json();
             
-            // Simulate delay for more natural feel
-            setTimeout(() => {
-                removeTypingIndicator();
-                addMessage(data.message, false);
-                sendBtn.disabled = false;
-                messageInput.focus();
-            }, 1000);
+            removeTypingIndicator();
+
+            if (data.success) {
+                // Add assistant response with sources
+                addMessage(data.answer, false, data.sources);
+
+                // Update conversation history
+                conversationHistory.push({
+                    role: 'user',
+                    content: message
+                });
+                conversationHistory.push({
+                    role: 'assistant',
+                    content: data.answer
+                });
+
+                // Keep only last 6 messages (3 exchanges)
+                if (conversationHistory.length > 6) {
+                    conversationHistory = conversationHistory.slice(-6);
+                }
+            } else {
+                addMessage('❌ ' + (data.error || 'Une erreur est survenue.'), false);
+            }
 
         } catch (error) {
             removeTypingIndicator();
-            addMessage('Sorry, there was an error processing your request. Please try again.', false);
-            sendBtn.disabled = false;
+            addMessage('❌ Erreur de connexion au serveur. Veuillez réessayer.', false);
+            console.error('Error:', error);
         }
+
+        sendBtn.disabled = false;
+        messageInput.disabled = false;
+        messageInput.focus();
     }
 
     sendBtn.addEventListener('click', sendMessage);
 
     messageInput.addEventListener('keypress', (e) => {
-        if (e.key === 'Enter') {
+        if (e.key === 'Enter' && !e.shiftKey) {
+            e.preventDefault();
             sendMessage();
         }
     });
 
     // Focus input on load
     messageInput.focus();
+
+    // Refresh status every 30 seconds
+    setInterval(checkRAGStatus, 30000);
 </script>
 {% endblock %}
+

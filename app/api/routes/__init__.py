@@ -2,6 +2,6 @@
 API Routes
 """
 
-from . import pages, upload, chat, stats, weaviate
+from . import pages, upload, chat, stats, weaviate, rag
 
-__all__ = ['pages', 'upload', 'chat', 'stats', 'weaviate', 'retrieve']
+__all__ = ['pages', 'upload', 'chat', 'stats', 'weaviate', 'retrieve', 'rag']

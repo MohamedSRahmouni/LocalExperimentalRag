@@ -9,9 +9,12 @@ from app.api.dependencies import (
     initialize_document_processor,
     initialize_embedding_manager,
     initialize_weaviate,
+    initialize_lm_studio,
+    initialize_retrieval_service,   # ✅ AJOUTER
+    initialize_rag_service,         # ✅ AJOUTER
     get_doc_processor,
     get_embedding_manager,
-    get_weaviate_client
+    get_weaviate_client,
 )
 
 logger = logging.getLogger(__name__)
@@ -37,14 +40,17 @@ async def startup_event():
     
     # Initialize services
     try:
-        # Document processor
+        # Core services
         initialize_document_processor()
-        
-        # Embedding manager
         initialize_embedding_manager()
-        
-        # Weaviate vector database
         initialize_weaviate()
+        
+        # LM Studio
+        initialize_lm_studio()
+        
+        # ✅ AJOUTER CES 2 LIGNES CRITIQUES:
+        initialize_retrieval_service()
+        initialize_rag_service()
         
         logger.info("="*80)
         logger.info("✅ All services initialized successfully!")

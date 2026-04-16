@@ -13,9 +13,9 @@ logger = logging.getLogger(__name__)
 @dataclass
 class RetrievalConfig:
     """Configuration for retrieval"""
-    top_k: int = 5
+    top_k: int = 3
     min_score: float = 0.5
-    max_context_length: int = 2000
+    max_context_length: int = 1200
     enable_reranking: bool = True
     diversity_weight: float = 0.3
     recency_weight: float = 0.1

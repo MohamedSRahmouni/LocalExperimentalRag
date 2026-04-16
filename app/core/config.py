@@ -88,6 +88,16 @@ class Settings(BaseSettings):
     WEAVIATE_CLASS_NAME: str = os.getenv('WEAVIATE_CLASS_NAME', 'Ragdocument')
     WEAVIATE_VECTOR_DIMS: int = int(os.getenv('WEAVIATE_VECTOR_DIMS', '768'))
     USE_EMBEDDED_WEAVIATE: bool = os.getenv('USE_EMBEDDED_WEAVIATE', 'false').lower() == 'true'
+
+     
+    # ============================================================================
+    # LM STUDIO CONFIGURATION
+    # ============================================================================
+    LM_STUDIO_URL: str = os.getenv('LM_STUDIO_URL', 'http://localhost:1234/v1')
+    LM_STUDIO_MODEL: str = os.getenv('LM_STUDIO_MODEL', 'local-model')
+    LM_STUDIO_TEMPERATURE: float = float(os.getenv('LM_STUDIO_TEMPERATURE', '0.6'))
+    LM_STUDIO_MAX_TOKENS: int = int(os.getenv('LM_STUDIO_MAX_TOKENS', '2000'))
+    LM_STUDIO_TIMEOUT: int = int(os.getenv('LM_STUDIO_TIMEOUT', '60'))
     
     def __init__(self, **kwargs):
         super().__init__(**kwargs)

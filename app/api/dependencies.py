@@ -17,6 +17,9 @@ _embedding_manager: Optional[object] = None
 _weaviate_client: Optional[object] = None
 _vector_store: Optional[object] = None
 _search_engine: Optional[object] = None
+_lm_studio_service: Optional[object] = None
+_retrieval_service: Optional[object] = None
+_rag_service: Optional[object] = None
 
 
 # ============================================================================
@@ -69,7 +72,6 @@ def initialize_weaviate():
     """Initialize Weaviate client, vector store, and search engine"""
     global _weaviate_client, _vector_store, _search_engine
     
-    # ✅ FIXED: Correct import path
     from app.data.vectordb import WeaviateClient, VectorStore, SearchEngine
     
     logger.info("Initializing Weaviate Vector Database...")
@@ -81,21 +83,6 @@ def initialize_weaviate():
     
     if _weaviate_client.is_connected():
         logger.info("✅ Weaviate connected successfully")
-        
-        # List collections
-        try:
-            collections = _weaviate_client.client.collections.list_all()
-            logger.info(f"📋 Found {len(collections)} collection(s) in Weaviate")
-            
-            for name in list(collections.keys())[:5]:  # Show first 5
-                try:
-                    col = _weaviate_client.client.collections.get(name)
-                    count = col.aggregate.over_all(total_count=True)
-                    logger.info(f"   📦 '{name}': {count.total_count} objects")
-                except:
-                    logger.info(f"   📦 '{name}'")
-        except Exception as e:
-            logger.warning(f"Could not list collections: {e}")
         
         # Initialize vector store
         _vector_store = VectorStore(
@@ -117,6 +104,103 @@ def initialize_weaviate():
         logger.info(f"   Current documents in vector DB: {stats.get('document_count', 0)}")
     else:
         logger.warning("⚠️  Weaviate not connected - vector storage disabled")
+
+
+def initialize_lm_studio():
+    """Initialize LM Studio service"""
+    global _lm_studio_service
+    
+    from app.services.retrieval.lm_studio_service import LMStudioService, LMStudioConfig
+    
+    logger.info("Initializing LM Studio...")
+    
+    config = LMStudioConfig(
+        base_url=settings.LM_STUDIO_URL,
+        model=settings.LM_STUDIO_MODEL,
+        temperature=settings.LM_STUDIO_TEMPERATURE,
+        max_tokens=settings.LM_STUDIO_MAX_TOKENS,
+        timeout=settings.LM_STUDIO_TIMEOUT
+    )
+    
+    _lm_studio_service = LMStudioService(config=config)
+    
+    if _lm_studio_service.is_available():
+        logger.info("✅ LM Studio initialized successfully")
+    else:
+        logger.warning("⚠️  LM Studio not available - generation features disabled")
+
+
+def initialize_retrieval_service():
+    """Initialize retrieval service"""
+    global _retrieval_service
+    
+    from app.services.retrieval.retrieval_service import RetrievalService, RetrievalConfig
+    
+    search_engine = get_search_engine()
+    doc_processor = get_doc_processor()
+    
+    if not search_engine:
+        logger.error("❌ Cannot initialize retrieval service - search engine not available")
+        return
+    
+    # Get embedder
+    embedder = None
+    if doc_processor and hasattr(doc_processor, 'semantic_chunker'):
+        if doc_processor.semantic_chunker.is_model_available():
+            embedder = doc_processor.semantic_chunker.embedder
+    
+    if not embedder:
+        logger.error("❌ Cannot initialize retrieval service - embedder not available")
+        return
+    
+    logger.info("Initializing Retrieval Service...")
+    
+    _retrieval_service = RetrievalService(
+        search_engine=search_engine,
+        embedder=embedder,
+        config=RetrievalConfig(
+            top_k=5,
+            min_score=0.5,
+            max_context_length=2000,
+            enable_reranking=True
+        )
+    )
+    
+    logger.info("✅ Retrieval service initialized")
+
+
+def initialize_rag_service():
+    """Initialize RAG service"""
+    global _rag_service
+    
+    from app.services.retrieval.rag_service import RAGService, RAGConfig
+    
+    retrieval_service = get_retrieval_service()
+    lm_studio_service = get_lm_studio_service()
+    
+    if not retrieval_service:
+        logger.error("❌ Cannot initialize RAG service - retrieval service not available")
+        return
+    
+    if not lm_studio_service or not lm_studio_service.is_available():
+        logger.error("❌ Cannot initialize RAG service - LM Studio not available")
+        return
+    
+    logger.info("Initializing RAG Service...")
+    
+    _rag_service = RAGService(
+        retrieval_service=retrieval_service,
+        lm_studio_service=lm_studio_service,
+        config=RAGConfig(
+            top_k=3,
+            min_score=0.55,
+            enable_reranking=True,
+            temperature=0.4,
+            max_tokens=200
+        )
+    )
+    
+    logger.info("✅ RAG service initialized")
 
 
 # ============================================================================
@@ -146,3 +230,18 @@ def get_vector_store():
 def get_search_engine():
     """Get search engine instance"""
     return _search_engine
+
+
+def get_lm_studio_service():
+    """Get LM Studio service instance"""
+    return _lm_studio_service
+
+
+def get_retrieval_service():
+    """Get retrieval service instance"""
+    return _retrieval_service
+
+
+def get_rag_service():
+    """Get RAG service instance"""
+    return _rag_service
