@@ -1,0 +1,24 @@
+{
+  "filename": "RAG_Complete_Guide.pdf",
+  "chunk_count": 12,
+  "embedding_stats": {
+    "total_chunks": 12,
+    "embedding_dim": 1024,
+    "model_name": "./app/scripts/models/bge-m3",
+    "model_type": "bge-sentence-transformers",
+    "text_stats": {
+      "min_length": 132,
+      "max_length": 494,
+      "avg_length": 384.5,
+      "total_characters": 4614
+    },
+    "embedding_stats": {
+      "mean_norm": 1.0000000015661554,
+      "std_norm": 4.565812121708262e-08
+    }
+  },
+  "embedded_at": "2026-05-12T22:36:41.900203",
+  "model": "./app/scripts/models/bge-m3",
+  "model_type": "bge-sentence-transformers",
+  "embedding_dim": 1024
+}

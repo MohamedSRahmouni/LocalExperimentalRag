@@ -1,0 +1,24 @@
+{
+  "filename": "Lettre_Motivation_Rahmouni_Mohamed_Salah.pdf",
+  "chunk_count": 4,
+  "embedding_stats": {
+    "total_chunks": 4,
+    "embedding_dim": 1024,
+    "model_name": "./app/scripts/models/bge-m3",
+    "model_type": "bge-sentence-transformers",
+    "text_stats": {
+      "min_length": 164,
+      "max_length": 992,
+      "avg_length": 622.0,
+      "total_characters": 2488
+    },
+    "embedding_stats": {
+      "mean_norm": 1.0000000527887916,
+      "std_norm": 2.530834367447057e-08
+    }
+  },
+  "embedded_at": "2026-05-12T18:55:37.255095",
+  "model": "./app/scripts/models/bge-m3",
+  "model_type": "bge-sentence-transformers",
+  "embedding_dim": 1024
+}

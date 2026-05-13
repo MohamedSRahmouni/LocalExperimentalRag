@@ -1,6 +1,8 @@
 """
 Retrieval Routes
 Advanced RAG retrieval endpoints
+
+Updated to use new pipeline architecture
 """
 
 import logging
@@ -10,56 +12,12 @@ from fastapi import APIRouter, Query
 from fastapi.responses import JSONResponse
 
 from app.api.dependencies import (
-    get_search_engine,
-    get_doc_processor
+    get_rag_service,
+    get_vector_store
 )
-from app.services.retrieval.retrieval_service import RetrievalService, RetrievalConfig
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
-
-# Global retrieval service (initialized lazily)
-_retrieval_service: Optional[RetrievalService] = None
-
-
-def get_retrieval_service() -> Optional[RetrievalService]:
-    """Get or create retrieval service"""
-    global _retrieval_service
-    
-    if _retrieval_service is not None:
-        return _retrieval_service
-    
-    # Initialize
-    search_engine = get_search_engine()
-    doc_processor = get_doc_processor()
-    
-    if not search_engine:
-        logger.error("Search engine not available")
-        return None
-    
-    # Get embedder
-    embedder = None
-    if doc_processor and hasattr(doc_processor, 'semantic_chunker'):
-        if doc_processor.semantic_chunker.is_model_available():
-            embedder = doc_processor.semantic_chunker.embedder
-    
-    if not embedder:
-        logger.error("Embedder not available")
-        return None
-    
-    # Create service
-    _retrieval_service = RetrievalService(
-        search_engine=search_engine,
-        embedder=embedder,
-        config=RetrievalConfig(
-            top_k=5,
-            min_score=0.5,
-            max_context_length=2000,
-            enable_reranking=True
-        )
-    )
-    
-    return _retrieval_service
 
 
 @router.post("/retrieve")
@@ -98,27 +56,37 @@ async def retrieve(
     ```
     """
     
-    retrieval_service = get_retrieval_service()
+    # ================================================================
+    # Get services from new pipeline
+    # ================================================================
+    rag_service = get_rag_service()
+    vector_store = get_vector_store()
     
-    if not retrieval_service:
+    if not rag_service or not vector_store:
         return JSONResponse({
             "success": False,
             "error": "Retrieval service not available"
         }, status_code=503)
     
     try:
-        # Override config if needed
-        if not enable_reranking:
-            retrieval_service.config.enable_reranking = False
+        logger.info(f"🔍 Retrieve query: '{query[:100]}...'")
+        logger.info(f"   top_k: {top_k}, min_score: {min_score}")
         
-        # Retrieve
+        # ================================================================
+        # Use RAG service's embedded RetrievalService
+        # ================================================================
+        retrieval_service = rag_service.retrieval_service
+        
+        # Perform retrieval
         result = retrieval_service.retrieve(
             query=query,
             top_k=top_k,
             min_score=min_score
         )
         
+        # ================================================================
         # Format response
+        # ================================================================
         return JSONResponse({
             "success": True,
             "query": result.query,
@@ -127,9 +95,11 @@ async def retrieve(
                     "chunk_id": chunk.chunk_id,
                     "text": chunk.text,
                     "score": chunk.score,
+                    "similarity": chunk.score,
                     "source": chunk.source,
                     "rank": chunk.rank,
-                    "metadata": chunk.metadata
+                    "metadata": chunk.metadata,
+                    "preview": chunk.text[:200] + "..." if len(chunk.text) > 200 else chunk.text
                 }
                 for chunk in result.chunks
             ],
@@ -138,12 +108,15 @@ async def retrieve(
                 "total_found": result.total_found,
                 "retrieval_time": result.retrieval_time,
                 "chunks_returned": len(result.chunks),
+                "top_k": top_k,
+                "min_score": min_score,
+                "enable_reranking": result.metadata.get('reranked', False),
                 **result.metadata
             }
         })
         
     except Exception as e:
-        logger.error(f"Retrieval error: {e}")
+        logger.error(f"❌ Retrieval error: {e}")
         import traceback
         traceback.print_exc()
         
@@ -155,26 +128,177 @@ async def retrieve(
 
 @router.get("/retrieve/config")
 async def get_retrieval_config():
-    """Get current retrieval configuration"""
+    """
+    Get current retrieval configuration
     
-    retrieval_service = get_retrieval_service()
+    **Response:**
+    ```json
+    {
+        "top_k": 5,
+        "min_score": 0.5,
+        "enable_reranking": true,
+        "diversity_weight": 0.3,
+        "recency_weight": 0.1
+    }
+    ```
+    """
     
-    if not retrieval_service:
+    rag_service = get_rag_service()
+    
+    if not rag_service:
         return JSONResponse({
             "success": False,
-            "error": "Retrieval service not available"
+            "error": "RAG service not available"
         }, status_code=503)
     
-    return JSONResponse(retrieval_service.get_retrieval_stats())
+    retrieval_config = rag_service.retrieval_service.config
+    
+    return JSONResponse({
+        "success": True,
+        "config": {
+            "top_k": retrieval_config.top_k,
+            "min_score": retrieval_config.min_score,
+            "max_context_length": retrieval_config.max_context_length,
+            "enable_reranking": retrieval_config.enable_reranking,
+            "diversity_weight": retrieval_config.diversity_weight,
+            "recency_weight": retrieval_config.recency_weight
+        }
+    })
 
 
 @router.post("/retrieve/test")
-async def test_retrieval():
-    """Test retrieval with a sample query"""
+async def test_retrieval(
+    query: str = Query("What is machine learning?", description="Test query")
+):
+    """
+    Test retrieval with a sample query
+    
+    Returns retrieval results to verify the system is working
+    """
+    
+    logger.info(f"🧪 Testing retrieval with: '{query}'")
     
     return await retrieve(
-        query="What is machine learning?",
+        query=query,
         top_k=3,
         min_score=0.5,
         enable_reranking=True
     )
+
+
+@router.post("/retrieve/by-file")
+async def retrieve_by_file(
+    filename: str = Query(..., description="Filename to retrieve from"),
+    limit: int = Query(100, ge=1, le=1000, description="Maximum chunks to return")
+):
+    """
+    Retrieve all chunks from a specific file
+    
+    **Response:**
+    ```json
+    {
+        "success": true,
+        "filename": "document.pdf",
+        "chunks": [
+            {
+                "chunk_id": "...",
+                "text": "...",
+                "chunk_index": 0,
+                "total_chunks": 10
+            }
+        ]
+    }
+    ```
+    """
+    
+    vector_store = get_vector_store()
+    
+    if not vector_store:
+        return JSONResponse({
+            "success": False,
+            "error": "Vector store not available"
+        }, status_code=503)
+    
+    try:
+        logger.info(f"📄 Retrieving chunks from file: {filename}")
+        
+        # Use VectorStore's search_by_filename method
+        chunks = vector_store.search_by_filename(
+            filename=filename,
+            limit=limit
+        )
+        
+        return JSONResponse({
+            "success": True,
+            "filename": filename,
+            "chunks": [
+                {
+                    "chunk_id": chunk['chunk_id'],
+                    "text": chunk['text'],
+                    "chunk_index": chunk.get('chunk_index', 0),
+                    "total_chunks": chunk.get('metadata', {}).get('total_chunks', 0),
+                    "metadata": chunk.get('metadata', {})
+                }
+                for chunk in chunks
+            ],
+            "total": len(chunks)
+        })
+        
+    except Exception as e:
+        logger.error(f"❌ Error retrieving by file: {e}")
+        return JSONResponse({
+            "success": False,
+            "error": str(e)
+        }, status_code=500)
+
+
+@router.get("/retrieve/random-samples")
+async def get_random_samples(
+    count: int = Query(5, ge=1, le=50, description="Number of samples to return")
+):
+    """
+    Get random sample documents from vector store
+    
+    Useful for testing and debugging
+    
+    **Response:**
+    ```json
+    {
+        "success": true,
+        "samples": [
+            {
+                "chunk_id": "...",
+                "text": "...",
+                "filename": "...",
+                "preview": "..."
+            }
+        ]
+    }
+    ```
+    """
+    
+    vector_store = get_vector_store()
+    
+    if not vector_store:
+        return JSONResponse({
+            "success": False,
+            "error": "Vector store not available"
+        }, status_code=503)
+    
+    try:
+        logger.info(f"🎲 Getting {count} random samples")
+        
+        samples = vector_store.get_random_samples(count=count)
+        
+        return JSONResponse({
+            "success": True,
+            "samples": samples,
+            "total": len(samples)
+        })
+        
+    except Exception as e:
+        logger.error(f"❌ Error getting samples: {e}")
+        return JSONResponse({
+            "success": False,
+            "error": str(e)
+        }, status_code=500)

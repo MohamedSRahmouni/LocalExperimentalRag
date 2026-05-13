@@ -1,0 +1,889 @@
+
+================================================================================
+Processing Session
+================================================================================
+Timestamp: 2026-05-12 17:57:51
+Files: Lettre_Motivation_Rahmouni_Mohamed_Salah.pdf
+Model: ./app/scripts/models/bge-m3
+Device: CPU
+Chunking Method: semantic
+Total Chunks: 4
+Stored in Weaviate: 0
+================================================================================
+
+Chunk #1
+--------------------------------------------------------------------------------
+Document: Lettre_Motivation_Rahmouni_Mohamed_Salah.pdf
+Chunk ID: 72bfd92301b8c9a7aaf20ade1429b6f0
+Length: 992 characters
+Embedding Dim: 1024
+Model: bge-sentence-transformers
+--------------------------------------------------------------------------------
+Rahmouni Mohamed Salah
+Mohamed.s.rahmouni@gmail.com
++216 55 751 134
+LinkedIn : linkedin.com/in/m-s-rahmouni
+Objet : Candidature au poste d’Ingénieur IA / AI Engineer
+Madame, Monsieur,
+Ingénieur en Intelligence Artificielle spécialisé en IA générative, je souhaite vous soumettre
+ma candidature pour le poste d’Ingénieur IA au sein de votre entreprise.
+Fort de plus de deux ans et demi d’expérience, j’ai conçu et déployé des solutions
+d’intelligence artificielle en production, avec une expertise particulière en
+Retrieval-Augmented Generation (RAG), recherche hybride, embeddings, bases de
+données vectorielles et orchestration de modèles de langage (LLM).
+Actuellement AI Engineer chez Altisys, je développe des solutions innovantes autour de
+l’IA générative pour la plateforme EagleAct. Parmi mes réalisations principales :
+ Conception d’un système RAG hybride combinant recherche vectorielle, BM25,
+Reciprocal Rank Fusion et reranking par LLM local, améliorant la pertinence de recherche
+================================================================================
+
+Chunk #2
+--------------------------------------------------------------------------------
+Document: Lettre_Motivation_Rahmouni_Mohamed_Salah.pdf
+Chunk ID: fa45de35f9988358432ed0bdf78f3f3e
+Length: 913 characters
+Embedding Dim: 1024
+Model: bge-sentence-transformers
+--------------------------------------------------------------------------------
+ Conception d’un système RAG hybride combinant recherche vectorielle, BM25,
+Reciprocal Rank Fusion et reranking par LLM local, améliorant la pertinence de recherche
+de 75 %.
+ Développement de pipelines d’ingestion multi-sources (PDF, DOCX, images, bases SQL)
+avec PaddleOCR.
+ Mise en place d’un système intelligent de matching e-mail/client basé sur des
+embeddings BERT et des modèles de langage locaux.
+ Développement d’une plateforme automatisée de génération de vidéos courtes par IA
+utilisant GPT-4o, Whisper et Neural TTS.
+Sur le plan technique, je maîtrise notamment Python, FastAPI, LangChain, Weaviate,
+Sentence Transformers, PyTorch, ainsi que les technologies .NET et Angular. Cette
+double compétence IA et développement full stack me permet de concevoir des solutions
+robustes, scalables et industrialisées.
+Je suis particulièrement motivé par la perspective de rejoindre une équipe innovante où je
+================================================================================
+
+Chunk #3
+--------------------------------------------------------------------------------
+Document: Lettre_Motivation_Rahmouni_Mohamed_Salah.pdf
+Chunk ID: 330ed0905f21c5e93e820eb6219fd0bd
+Length: 419 characters
+Embedding Dim: 1024
+Model: bge-sentence-transformers
+--------------------------------------------------------------------------------
+robustes, scalables et industrialisées.
+Je suis particulièrement motivé par la perspective de rejoindre une équipe innovante où je
+pourrai mettre à profit mes compétences en IA générative et contribuer au développement
+de produits à forte valeur ajoutée.
+Rigoureux, autonome et passionné par l’intelligence artificielle, je suis disponible
+immédiatement et serais ravi de pouvoir échanger avec vous lors d’un entretien.
+================================================================================
+
+Chunk #4
+--------------------------------------------------------------------------------
+Document: Lettre_Motivation_Rahmouni_Mohamed_Salah.pdf
+Chunk ID: f1c28b3b508ac49002db95f55e82c389
+Length: 164 characters
+Embedding Dim: 1024
+Model: bge-sentence-transformers
+--------------------------------------------------------------------------------
+Je vous remercie de l’attention portée à ma candidature et vous prie d’agréer, Madame,
+Monsieur, l’expression de mes salutations distinguées.
+Rahmouni Mohamed Salah
+================================================================================
+
+
+================================================================================
+Processing Session
+================================================================================
+Timestamp: 2026-05-12 18:50:10
+Files: Lettre_Motivation_Rahmouni_Mohamed_Salah.pdf
+Model: ./app/scripts/models/bge-m3
+Device: CPU
+Chunking Method: semantic
+Total Chunks: 4
+Stored in Weaviate: 0
+================================================================================
+
+Chunk #1
+--------------------------------------------------------------------------------
+Document: Lettre_Motivation_Rahmouni_Mohamed_Salah.pdf
+Chunk ID: 72bfd92301b8c9a7aaf20ade1429b6f0
+Length: 992 characters
+Embedding Dim: 1024
+Model: bge-sentence-transformers
+--------------------------------------------------------------------------------
+Rahmouni Mohamed Salah
+Mohamed.s.rahmouni@gmail.com
++216 55 751 134
+LinkedIn : linkedin.com/in/m-s-rahmouni
+Objet : Candidature au poste d’Ingénieur IA / AI Engineer
+Madame, Monsieur,
+Ingénieur en Intelligence Artificielle spécialisé en IA générative, je souhaite vous soumettre
+ma candidature pour le poste d’Ingénieur IA au sein de votre entreprise.
+Fort de plus de deux ans et demi d’expérience, j’ai conçu et déployé des solutions
+d’intelligence artificielle en production, avec une expertise particulière en
+Retrieval-Augmented Generation (RAG), recherche hybride, embeddings, bases de
+données vectorielles et orchestration de modèles de langage (LLM).
+Actuellement AI Engineer chez Altisys, je développe des solutions innovantes autour de
+l’IA générative pour la plateforme EagleAct. Parmi mes réalisations principales :
+ Conception d’un système RAG hybride combinant recherche vectorielle, BM25,
+Reciprocal Rank Fusion et reranking par LLM local, améliorant la pertinence de recherche
+================================================================================
+
+Chunk #2
+--------------------------------------------------------------------------------
+Document: Lettre_Motivation_Rahmouni_Mohamed_Salah.pdf
+Chunk ID: fa45de35f9988358432ed0bdf78f3f3e
+Length: 913 characters
+Embedding Dim: 1024
+Model: bge-sentence-transformers
+--------------------------------------------------------------------------------
+ Conception d’un système RAG hybride combinant recherche vectorielle, BM25,
+Reciprocal Rank Fusion et reranking par LLM local, améliorant la pertinence de recherche
+de 75 %.
+ Développement de pipelines d’ingestion multi-sources (PDF, DOCX, images, bases SQL)
+avec PaddleOCR.
+ Mise en place d’un système intelligent de matching e-mail/client basé sur des
+embeddings BERT et des modèles de langage locaux.
+ Développement d’une plateforme automatisée de génération de vidéos courtes par IA
+utilisant GPT-4o, Whisper et Neural TTS.
+Sur le plan technique, je maîtrise notamment Python, FastAPI, LangChain, Weaviate,
+Sentence Transformers, PyTorch, ainsi que les technologies .NET et Angular. Cette
+double compétence IA et développement full stack me permet de concevoir des solutions
+robustes, scalables et industrialisées.
+Je suis particulièrement motivé par la perspective de rejoindre une équipe innovante où je
+================================================================================
+
+Chunk #3
+--------------------------------------------------------------------------------
+Document: Lettre_Motivation_Rahmouni_Mohamed_Salah.pdf
+Chunk ID: 330ed0905f21c5e93e820eb6219fd0bd
+Length: 419 characters
+Embedding Dim: 1024
+Model: bge-sentence-transformers
+--------------------------------------------------------------------------------
+robustes, scalables et industrialisées.
+Je suis particulièrement motivé par la perspective de rejoindre une équipe innovante où je
+pourrai mettre à profit mes compétences en IA générative et contribuer au développement
+de produits à forte valeur ajoutée.
+Rigoureux, autonome et passionné par l’intelligence artificielle, je suis disponible
+immédiatement et serais ravi de pouvoir échanger avec vous lors d’un entretien.
+================================================================================
+
+Chunk #4
+--------------------------------------------------------------------------------
+Document: Lettre_Motivation_Rahmouni_Mohamed_Salah.pdf
+Chunk ID: f1c28b3b508ac49002db95f55e82c389
+Length: 164 characters
+Embedding Dim: 1024
+Model: bge-sentence-transformers
+--------------------------------------------------------------------------------
+Je vous remercie de l’attention portée à ma candidature et vous prie d’agréer, Madame,
+Monsieur, l’expression de mes salutations distinguées.
+Rahmouni Mohamed Salah
+================================================================================
+
+
+================================================================================
+Processing Session
+================================================================================
+Timestamp: 2026-05-12 18:55:39
+Files: Lettre_Motivation_Rahmouni_Mohamed_Salah.pdf
+Model: ./app/scripts/models/bge-m3
+Device: CPU
+Chunking Method: semantic
+Total Chunks: 4
+Stored in Weaviate: 4
+================================================================================
+
+Chunk #1
+--------------------------------------------------------------------------------
+Document: Lettre_Motivation_Rahmouni_Mohamed_Salah.pdf
+Chunk ID: 72bfd92301b8c9a7aaf20ade1429b6f0
+Length: 992 characters
+Embedding Dim: 1024
+Model: bge-sentence-transformers
+--------------------------------------------------------------------------------
+Rahmouni Mohamed Salah
+Mohamed.s.rahmouni@gmail.com
++216 55 751 134
+LinkedIn : linkedin.com/in/m-s-rahmouni
+Objet : Candidature au poste d’Ingénieur IA / AI Engineer
+Madame, Monsieur,
+Ingénieur en Intelligence Artificielle spécialisé en IA générative, je souhaite vous soumettre
+ma candidature pour le poste d’Ingénieur IA au sein de votre entreprise.
+Fort de plus de deux ans et demi d’expérience, j’ai conçu et déployé des solutions
+d’intelligence artificielle en production, avec une expertise particulière en
+Retrieval-Augmented Generation (RAG), recherche hybride, embeddings, bases de
+données vectorielles et orchestration de modèles de langage (LLM).
+Actuellement AI Engineer chez Altisys, je développe des solutions innovantes autour de
+l’IA générative pour la plateforme EagleAct. Parmi mes réalisations principales :
+ Conception d’un système RAG hybride combinant recherche vectorielle, BM25,
+Reciprocal Rank Fusion et reranking par LLM local, améliorant la pertinence de recherche
+================================================================================
+
+Chunk #2
+--------------------------------------------------------------------------------
+Document: Lettre_Motivation_Rahmouni_Mohamed_Salah.pdf
+Chunk ID: fa45de35f9988358432ed0bdf78f3f3e
+Length: 913 characters
+Embedding Dim: 1024
+Model: bge-sentence-transformers
+--------------------------------------------------------------------------------
+ Conception d’un système RAG hybride combinant recherche vectorielle, BM25,
+Reciprocal Rank Fusion et reranking par LLM local, améliorant la pertinence de recherche
+de 75 %.
+ Développement de pipelines d’ingestion multi-sources (PDF, DOCX, images, bases SQL)
+avec PaddleOCR.
+ Mise en place d’un système intelligent de matching e-mail/client basé sur des
+embeddings BERT et des modèles de langage locaux.
+ Développement d’une plateforme automatisée de génération de vidéos courtes par IA
+utilisant GPT-4o, Whisper et Neural TTS.
+Sur le plan technique, je maîtrise notamment Python, FastAPI, LangChain, Weaviate,
+Sentence Transformers, PyTorch, ainsi que les technologies .NET et Angular. Cette
+double compétence IA et développement full stack me permet de concevoir des solutions
+robustes, scalables et industrialisées.
+Je suis particulièrement motivé par la perspective de rejoindre une équipe innovante où je
+================================================================================
+
+Chunk #3
+--------------------------------------------------------------------------------
+Document: Lettre_Motivation_Rahmouni_Mohamed_Salah.pdf
+Chunk ID: 330ed0905f21c5e93e820eb6219fd0bd
+Length: 419 characters
+Embedding Dim: 1024
+Model: bge-sentence-transformers
+--------------------------------------------------------------------------------
+robustes, scalables et industrialisées.
+Je suis particulièrement motivé par la perspective de rejoindre une équipe innovante où je
+pourrai mettre à profit mes compétences en IA générative et contribuer au développement
+de produits à forte valeur ajoutée.
+Rigoureux, autonome et passionné par l’intelligence artificielle, je suis disponible
+immédiatement et serais ravi de pouvoir échanger avec vous lors d’un entretien.
+================================================================================
+
+Chunk #4
+--------------------------------------------------------------------------------
+Document: Lettre_Motivation_Rahmouni_Mohamed_Salah.pdf
+Chunk ID: f1c28b3b508ac49002db95f55e82c389
+Length: 164 characters
+Embedding Dim: 1024
+Model: bge-sentence-transformers
+--------------------------------------------------------------------------------
+Je vous remercie de l’attention portée à ma candidature et vous prie d’agréer, Madame,
+Monsieur, l’expression de mes salutations distinguées.
+Rahmouni Mohamed Salah
+================================================================================
+
+
+================================================================================
+Processing Session
+================================================================================
+Timestamp: 2026-05-12 18:59:01
+Files: RAG_Complete_Guide.pdf, Mohamed Saleh Rahmouni CV (1).pdf
+Model: ./app/scripts/models/bge-m3
+Device: CPU
+Chunking Method: semantic
+Total Chunks: 15
+Stored in Weaviate: 15
+================================================================================
+
+Chunk #1
+--------------------------------------------------------------------------------
+Document: RAG_Complete_Guide.pdf
+Chunk ID: 2e95e915312a7bbb92d94f947363ef7b
+Length: 933 characters
+Embedding Dim: 1024
+Model: bge-sentence-transformers
+--------------------------------------------------------------------------------
+Chunking Strategies
+Chunking splits documents into smaller pieces for retrieval. Fixed-size chunking uses equal lengths
+but may break context. Semantic chunking splits by meaning (sentences/paragraphs), preserving
+coherence. Recursive chunking combines both by splitting hierarchically. Choose chunk size based
+on embedding context window, domain structure, and retrieval quality trade-off.
+Embedding Models
+Embedding models convert text into dense vectors capturing semantic meaning. They map similar
+texts to nearby points in vector space using neural networks trained on large corpora.
+Choosing Embedding Models
+Consider domain match, multilingual support, latency, cost, and benchmark performance (MTEB).
+Use domain-specific embeddings when available.
+Agentic RAG
+Agentic RAG introduces an agent that plans, decides when to retrieve, calls tools, and iterates. It
+enables multi-step reasoning and dynamic retrieval.
+Hybrid Search
+================================================================================
+
+Chunk #2
+--------------------------------------------------------------------------------
+Document: RAG_Complete_Guide.pdf
+Chunk ID: ea58c3ab269a5343ad8a8504f5803c28
+Length: 554 characters
+Embedding Dim: 1024
+Model: bge-sentence-transformers
+--------------------------------------------------------------------------------
+Agentic RAG
+Agentic RAG introduces an agent that plans, decides when to retrieve, calls tools, and iterates. It
+enables multi-step reasoning and dynamic retrieval.
+Hybrid Search
+Hybrid search combines vector similarity and keyword (BM25) search. It improves recall by
+capturing both semantic and lexical matches.
+Re-ranking
+Re-ranking uses a cross-encoder or LLM to reorder retrieved documents for better relevance,
+improving precision.
+Multi-hop Questions
+Use query decomposition, iterative retrieval, and reasoning chains to combine multiple documents.
+================================================================================
+
+Chunk #3
+--------------------------------------------------------------------------------
+Document: RAG_Complete_Guide.pdf
+Chunk ID: b67f4c680e27558cd8360184120d5b0a
+Length: 893 characters
+Embedding Dim: 1024
+Model: bge-sentence-transformers
+--------------------------------------------------------------------------------
+Lost in the Middle
+LLMs tend to ignore middle context in long inputs. Mitigate via reordering, chunk prioritization, and
+windowing.
+Evaluation
+Faithfulness: answer grounded in sources. Relevance: retrieved docs match query. Context
+precision/recall: quality of retrieved chunks.
+Self-RAG
+Self-RAG allows the model to decide when to retrieve using confidence or uncertainty signals.
+Graph RAG
+Graph RAG uses knowledge graphs for structured relationships. Useful for complex multi-hop
+reasoning.
+Structured Data
+Use SQL querying, table-aware embeddings, or tools to query structured sources directly.
+Failure Modes
+Hallucination, poor retrieval, redundancy, latency. Debug via logging, eval datasets, and ablations.
+Freshness
+Use incremental indexing, streaming pipelines, and document versioning.
+Latency Optimization
+Use ANN indexes, caching, smaller embeddings, batching, and async pipelines.
+================================================================================
+
+Chunk #4
+--------------------------------------------------------------------------------
+Document: RAG_Complete_Guide.pdf
+Chunk ID: dea4499867771dc0c83fa6923bf3fe07
+Length: 740 characters
+Embedding Dim: 1024
+Model: bge-sentence-transformers
+--------------------------------------------------------------------------------
+Metadata Filtering
+Filters restrict search space (e.g., user, date), improving precision and security.
+RAG vs Fine-tuning
+RAG is better for dynamic knowledge. Fine-tuning is better for behavior/style or static knowledge.
+Query Transformation
+HyDE generates hypothetical answers, decomposition splits queries, step-back abstracts intent.
+Citations
+Store chunk metadata and return sources alongside answers.
+Scaling
+Use sharding, distributed vector DBs, and ANN indexes.
+Parent-Child Chunking
+Retrieve small chunks but return larger parent context for better grounding.
+Fix Hallucination
+Improve retrieval, enforce citations, use stricter prompts, or verification steps.
+Reduce Redundancy
+Lower overlap, deduplicate via similarity thresholds.
+================================================================================
+
+Chunk #5
+--------------------------------------------------------------------------------
+Document: RAG_Complete_Guide.pdf
+Chunk ID: 61b1560763817bacbf999e985909120a
+Length: 509 characters
+Embedding Dim: 1024
+Model: bge-sentence-transformers
+--------------------------------------------------------------------------------
+Speed Retrieval
+Use ANN (FAISS), caching, and filtering.
+Deduplication
+Cluster similar embeddings and remove near-duplicates.
+Access Control
+Use metadata-based filtering with user permissions.
+Domain Jargon
+Use domain-specific embeddings or fine-tuning.
+Multimodal RAG
+Add OCR, image embeddings, and multimodal models.
+Versioning
+Track document versions and timestamps.
+Fix Multi-hop Failures
+Use agents, decomposition, and iterative retrieval.
+Resolve Conflicts
+Rank sources by trust, recency, and consensus.
+================================================================================
+
+Chunk #6
+--------------------------------------------------------------------------------
+Document: RAG_Complete_Guide.pdf
+Chunk ID: a154b0e67d45637848de2e51fded5a0b
+Length: 132 characters
+Embedding Dim: 1024
+Model: bge-sentence-transformers
+--------------------------------------------------------------------------------
+Keep Data Current
+Frequent re-indexing and freshness scoring.
+PDF Parsing
+Use layout-aware parsers, OCR, and table extraction tools.
+================================================================================
+
+Chunk #1
+--------------------------------------------------------------------------------
+Document: Mohamed Saleh Rahmouni CV (1).pdf
+Chunk ID: 07f1a1a292204945516bb46aea5440a7
+Length: 993 characters
+Embedding Dim: 1024
+Model: bge-sentence-transformers
+--------------------------------------------------------------------------------
+RAHMOUNI MOHAMED SALAH
+GEN AI ENGINEER
+MY PROFILE
+Mar 2024 - Mar 2026Gen AI ENGINEER - ALTISYS, FRANCE (Full Remote)
+EagleAct: Credit Management and Automated Debt collection
+Solution (B2B).Generative AI Engineer with +2 years of experience designing and deploying LLM-powered systems in
+production environments. Specialized in Retrieval-Augmented Generation (RAG), hybrid search
+architectures, semantic indexing, and vector databases. Experienced in integrating and orchestrating large
+language models (LLM) for intelligent automation, content generation, and knowledge retrieval. Skilled in
+building scalable AI services using Python, FastAPI, and modern embedding frameworks. Strong
+engineering background enabling secure, high-performance AI deployments from data ingestion to
+inference. Passionate about building reliable, context-aware AI systems that solve real business problems.
+Mohamed.s.rahmouni@gmail.com         +216 55 751 134            https://www.linkedin.com/in/m-s-rahmouni/
+================================================================================
+
+Chunk #2
+--------------------------------------------------------------------------------
+Document: Mohamed Saleh Rahmouni CV (1).pdf
+Chunk ID: e4cb4d80ae81bd43985f91ed82a6c111
+Length: 973 characters
+Embedding Dim: 1024
+Model: bge-sentence-transformers
+--------------------------------------------------------------------------------
+Mohamed.s.rahmouni@gmail.com         +216 55 751 134            https://www.linkedin.com/in/m-s-rahmouni/
+      PROFESSIONAL EXPERIENCE      TECHNICAL SKILLS
+Python
+C#
+JS/TS Weaviate
+Sql Server
+PostgresQl FastApi
+.NET
+Angular 
+Generative Ai Engineer
+🔎Retrieval-Augmented Generation (RAG)
+Architected an advanced hybrid RAG system improving information retrieval accuracy to 75%
+Designed a hybrid retrieval architecture (semantic vectors + BM25)
+Built multi-source ingestion pipelines (SQL, PNG, JPEG, DOC, PDF) with PaddleOCR to extract
+and normalize unstructured text for downstream processing.
+Generated embeddings using Qwen3-VL and Sentence Transformers and stored them in a
+Weaviate vector database for efficient semantic retrieval
+Added Reciprocal Rank Fusion (RRF) + LLM reranking (Gemma2)
+Built a FastAPI with endpoints, configurable top ‑k, filters, and structured responses .
+Added evaluation and tuning loops (k-values, RRF parameters, chunk size/overlap, rerank
+================================================================================
+
+Chunk #3
+--------------------------------------------------------------------------------
+Document: Mohamed Saleh Rahmouni CV (1).pdf
+Chunk ID: 6ac7453d975a33885bf9e02aef4e4560
+Length: 564 characters
+Embedding Dim: 1024
+Model: bge-sentence-transformers
+--------------------------------------------------------------------------------
+Built a FastAPI with endpoints, configurable top ‑k, filters, and structured responses .
+Added evaluation and tuning loops (k-values, RRF parameters, chunk size/overlap, rerank
+depth) to systematically improve retrieval quality and stabilize performance across document
+types.
+Technology: Python, FastAPI, Weaviate, Qwen3-VL, Sentence Transformers, Gemma 2 (local LLM),
+BM25, RRF, PaddleOCRFeb 2025 - Mar 2026 RAG
+Agentic Workflows
+LLM Orchestration
+LangChainPaddleOCR
+Sentence
+Transformers
+Hugging Face
+PyTorch Embedding
+models
+ Github
+Azure DevOps
+DOCKER
+JENKINS
+================================================================================
+
+Chunk #4
+--------------------------------------------------------------------------------
+Document: Mohamed Saleh Rahmouni CV (1).pdf
+Chunk ID: eba373d828e99ec266a38e6a4e6eda1f
+Length: 914 characters
+Embedding Dim: 1024
+Model: bge-sentence-transformers
+--------------------------------------------------------------------------------
+Design and develop new features based on business requirements, ensuring platform
+scalability and maintainability.
+Analyze, troubleshoot, and fix system issues while continuously improving performance
+and code quality .
+Create, optimize, and maintain stored procedures in SQL Server, ensuring query
+performance and data integrity.
+Refactor existing code to enhance readability, maintainability, and compliance with
+development best practices.
+Write and maintain technical documentation to facilitate system understanding, evolution,
+and maintenance by teams.📧 Intelligent Email-to-Client Matching
+Developed an intelligent email-to-client matching system eliminating manual classification and
+accelerating CRM workflows
+ Used BERT-based Sentence Transformers to generate contextual embeddings for incoming
+emails .
+Built enriched client representations by aggregating historical emails, client-specific identifiers,
+================================================================================
+
+Chunk #5
+--------------------------------------------------------------------------------
+Document: Mohamed Saleh Rahmouni CV (1).pdf
+Chunk ID: 6c31576f04279f3a5052d5c0961896e3
+Length: 926 characters
+Embedding Dim: 1024
+Model: bge-sentence-transformers
+--------------------------------------------------------------------------------
+Used BERT-based Sentence Transformers to generate contextual embeddings for incoming
+emails .
+Built enriched client representations by aggregating historical emails, client-specific identifiers,
+and named entities, generating unified embeddings through weighted contextual pooling.
+Developed a cosine similarity–based matching engine to compare incoming email embeddings
+with client profile vectors, applying adaptive confidence thresholds and top ‑N ranking.
+Automatically associated incoming emails with the most semantically relevant client in the CRM,
+triggering workflow automations and logging similarity confidence scores for auditability and
+performance tracking.
+Technology: Python, BERT, Sentence Transformers, IMAP, NLP Pipelines, Vector Matching
+🎬 AI Short Assistance Video Generation System
+Designed an AI-driven short video generation engine automating content production (script →
+voice → subtitles → rendering)
+================================================================================
+
+Chunk #6
+--------------------------------------------------------------------------------
+Document: Mohamed Saleh Rahmouni CV (1).pdf
+Chunk ID: c977fdd5c534e04acf426ed8b214ed14
+Length: 780 characters
+Embedding Dim: 1024
+Model: bge-sentence-transformers
+--------------------------------------------------------------------------------
+🎬 AI Short Assistance Video Generation System
+Designed an AI-driven short video generation engine automating content production (script →
+voice → subtitles → rendering)
+Implemented persona-controlled script generation using LLMs with strict JSON schema
+validation
+Leveraged advanced prompt engineering and context-aware LLM prompting to enhance
+narrative coherence, tone consistency, and structured output control
+Persona-controlled script generation with strict JSON validation
+ Integrated GPT-4o, Neural TTS, and Whisper for voice & subtitles sync
+ Automated rendering via OpenCV & FFmpeg
+Technology: Python, FastAPI, GPT-4o, Neural TTS, Whisper, OpenCV, FFmpeg
+Full-Stack Engineer Mar 2024 - Feb 2025
+Technology : .Net 4.7 ,AngularJS, SQL SERVER, Swagger, Azure DevOps, RestApi
+================================================================================
+
+Chunk #7
+--------------------------------------------------------------------------------
+Document: Mohamed Saleh Rahmouni CV (1).pdf
+Chunk ID: 4834693ed642d829e91ac5ab478804d4
+Length: 997 characters
+Embedding Dim: 1024
+Model: bge-sentence-transformers
+--------------------------------------------------------------------------------
+Project 2: E-Learning (Proof of Concept): 
+Design and develop new features aligned with business and technical requirements.
+Redesign and optimize the database by improving its structure, performance, and data
+management.
+Identify and fix bugs, ensuring application stability and reliability.
+Optimize existing code to enhance performance, readability, and maintainability.
+Implement front-end unit tests to ensure quality, robustness, and prevent regressions.
+Technology :  .NET 4.8, Angular13, Microsoft SQL Server, Azure DevOps, Github, RestApiDevelop new features in compliance with the platform’s functional and technical requirements.
+Fix back-end and front-end bugs, ensuring system stability, performance, and a smooth user
+experience.
+Write and maintain technical documentation to facilitate system understanding, evolution, and
+maintenance.
+Technology :  .Net 7.0 MVC, Microsoft SQL SERVER, Jenkins, Github, GitLab
+Mai 2023 - Nov 2023 FULL STACK DEVELOPER - TIMSOFT  - TUNIS (INTERNSHIP)
+================================================================================
+
+Chunk #8
+--------------------------------------------------------------------------------
+Document: Mohamed Saleh Rahmouni CV (1).pdf
+Chunk ID: 9bd02b9d15e49e4a21745ad0b8f9d11b
+Length: 974 characters
+Embedding Dim: 1024
+Model: bge-sentence-transformers
+--------------------------------------------------------------------------------
+maintenance.
+Technology :  .Net 7.0 MVC, Microsoft SQL SERVER, Jenkins, Github, GitLab
+Mai 2023 - Nov 2023 FULL STACK DEVELOPER - TIMSOFT  - TUNIS (INTERNSHIP) 
+Design and development of an online assessment plateforme
+Design and develop key platform modules, including recruitment campaign management,
+statistics and KPI dashboards, interview management, mailing module, and continuous user
+management.
+Design and implement the statistics and KPI module using Chart.js for data visualization.
+Implement and manage the database using PostgreSQL with Entity Framework Core.
+Develop the front-end using Angular and the back-end using .NET.
+Design and Implementation of an Integrated Multi-Language IDE for the Coding Game Part .
+Apply development best practices, ensuring code modularity, maintainability, and scalability.
+Test and optimize platform performance.
+Deploy and maintain the application in production environments, ensuring availability, performance,
+and security.
+================================================================================
+
+Chunk #9
+--------------------------------------------------------------------------------
+Document: Mohamed Saleh Rahmouni CV (1).pdf
+Chunk ID: 974b6553ec45e07bb130eee518385d7b
+Length: 930 characters
+Embedding Dim: 1024
+Model: bge-sentence-transformers
+--------------------------------------------------------------------------------
+Test and optimize platform performance.
+Deploy and maintain the application in production environments, ensuring availability, performance,
+and security.
+Technology  :  .NET6, Angular13, PostgresQL, Azure DevOps, Github, RestApiFULL STACK ENGINEER- IYA SOFT , TUNIS 
+Project 1: Digital transformation of the administrative process for a
+development and housing Dec 2023 - Mar 2024 
+Languages: English (B2) French (C2) German (A1) Arabic (C2 )
+Activities: Project Leader | Enactus ISI 2019-2020, Active Member Enactus ISI 2017-2019MASTER’S DEGREE IN INFORMATION SYSTEMS AND INFRASTRUCTURE SECURITY (M1)
+Higher Institute of Computer Science | Tunis 2020-2021 NATIONAL ENGINEERING DEGREE IN COMPUTER SCIENCE 
+ESPRIT – Private School of Engineering and Technology Tunis | 2021–2023     EDUCATION
+     ADDITIONAL INFORMATIONBACHELOR’S DEGREE IN NETWORK AND SERVICES ADMINISTRATION
+Higher Institute of Computer Science | Tunis 2017-2020
+================================================================================
+
+
+================================================================================
+Processing Session
+================================================================================
+Timestamp: 2026-05-12 22:36:42
+Files: RAG_Complete_Guide.pdf
+Model: ./app/scripts/models/bge-m3
+Device: CPU
+Chunking Method: semantic
+Total Chunks: 12
+Stored in Weaviate: 0
+================================================================================
+
+Chunk #1
+--------------------------------------------------------------------------------
+Document: RAG_Complete_Guide.pdf
+Chunk ID: e247881423088bfa3080e83d64b9dbf0
+Length: 407 characters
+Embedding Dim: 1024
+Model: bge-sentence-transformers
+--------------------------------------------------------------------------------
+Chunking Strategies
+Chunking splits documents into smaller pieces for retrieval. Fixed-size chunking uses equal lengths
+but may break context. Semantic chunking splits by meaning (sentences/paragraphs), preserving
+coherence. Recursive chunking combines both by splitting hierarchically. Choose chunk size based
+on embedding context window, domain structure, and retrieval quality trade-off.
+Embedding Models
+================================================================================
+
+Chunk #2
+--------------------------------------------------------------------------------
+Document: RAG_Complete_Guide.pdf
+Chunk ID: 6b3b24f6eecb1c428f13f203ebded0b9
+Length: 494 characters
+Embedding Dim: 1024
+Model: bge-sentence-transformers
+--------------------------------------------------------------------------------
+coherence. Recursive chunking combines both by splitting hierarchically. Choose chunk size based
+on embedding context window, domain structure, and retrieval quality trade-off.
+Embedding Models
+Embedding models convert text into dense vectors capturing semantic meaning. They map similar
+texts to nearby points in vector space using neural networks trained on large corpora.
+Choosing Embedding Models
+Consider domain match, multilingual support, latency, cost, and benchmark performance (MTEB).
+================================================================================
+
+Chunk #3
+--------------------------------------------------------------------------------
+Document: RAG_Complete_Guide.pdf
+Chunk ID: eb729eaaf39cd37936a04b8b494131c1
+Length: 490 characters
+Embedding Dim: 1024
+Model: bge-sentence-transformers
+--------------------------------------------------------------------------------
+Choosing Embedding Models
+Consider domain match, multilingual support, latency, cost, and benchmark performance (MTEB).
+Use domain-specific embeddings when available.
+Agentic RAG
+Agentic RAG introduces an agent that plans, decides when to retrieve, calls tools, and iterates. It
+enables multi-step reasoning and dynamic retrieval.
+Hybrid Search
+Hybrid search combines vector similarity and keyword (BM25) search. It improves recall by
+capturing both semantic and lexical matches.
+Re-ranking
+================================================================================
+
+Chunk #4
+--------------------------------------------------------------------------------
+Document: RAG_Complete_Guide.pdf
+Chunk ID: c030b133b77067b09a2a9f48c9816ccd
+Length: 390 characters
+Embedding Dim: 1024
+Model: bge-sentence-transformers
+--------------------------------------------------------------------------------
+Hybrid Search
+Hybrid search combines vector similarity and keyword (BM25) search. It improves recall by
+capturing both semantic and lexical matches.
+Re-ranking
+Re-ranking uses a cross-encoder or LLM to reorder retrieved documents for better relevance,
+improving precision.
+Multi-hop Questions
+Use query decomposition, iterative retrieval, and reasoning chains to combine multiple documents.
+================================================================================
+
+Chunk #5
+--------------------------------------------------------------------------------
+Document: RAG_Complete_Guide.pdf
+Chunk ID: ce44e87b32fffc700bcc3c6388159d66
+Length: 493 characters
+Embedding Dim: 1024
+Model: bge-sentence-transformers
+--------------------------------------------------------------------------------
+Lost in the Middle
+LLMs tend to ignore middle context in long inputs. Mitigate via reordering, chunk prioritization, and
+windowing.
+Evaluation
+Faithfulness: answer grounded in sources. Relevance: retrieved docs match query. Context
+precision/recall: quality of retrieved chunks.
+Self-RAG
+Self-RAG allows the model to decide when to retrieve using confidence or uncertainty signals.
+Graph RAG
+Graph RAG uses knowledge graphs for structured relationships. Useful for complex multi-hop
+reasoning.
+================================================================================
+
+Chunk #6
+--------------------------------------------------------------------------------
+Document: RAG_Complete_Guide.pdf
+Chunk ID: 403e492897e1ef1540133409c2574e67
+Length: 434 characters
+Embedding Dim: 1024
+Model: bge-sentence-transformers
+--------------------------------------------------------------------------------
+Graph RAG
+Graph RAG uses knowledge graphs for structured relationships. Useful for complex multi-hop
+reasoning.
+Structured Data
+Use SQL querying, table-aware embeddings, or tools to query structured sources directly.
+Failure Modes
+Hallucination, poor retrieval, redundancy, latency. Debug via logging, eval datasets, and ablations.
+Freshness
+Use incremental indexing, streaming pipelines, and document versioning.
+Latency Optimization
+================================================================================
+
+Chunk #7
+--------------------------------------------------------------------------------
+Document: RAG_Complete_Guide.pdf
+Chunk ID: ecf26ce769431ce80c0e445e2f326fd9
+Length: 179 characters
+Embedding Dim: 1024
+Model: bge-sentence-transformers
+--------------------------------------------------------------------------------
+Freshness
+Use incremental indexing, streaming pipelines, and document versioning.
+Latency Optimization
+Use ANN indexes, caching, smaller embeddings, batching, and async pipelines.
+================================================================================
+
+Chunk #8
+--------------------------------------------------------------------------------
+Document: RAG_Complete_Guide.pdf
+Chunk ID: 5b613e0773e8a1de022a1c312c2b748b
+Length: 490 characters
+Embedding Dim: 1024
+Model: bge-sentence-transformers
+--------------------------------------------------------------------------------
+Metadata Filtering
+Filters restrict search space (e.g., user, date), improving precision and security.
+RAG vs Fine-tuning
+RAG is better for dynamic knowledge. Fine-tuning is better for behavior/style or static knowledge.
+Query Transformation
+HyDE generates hypothetical answers, decomposition splits queries, step-back abstracts intent.
+Citations
+Store chunk metadata and return sources alongside answers.
+Scaling
+Use sharding, distributed vector DBs, and ANN indexes.
+Parent-Child Chunking
+================================================================================
+
+Chunk #9
+--------------------------------------------------------------------------------
+Document: RAG_Complete_Guide.pdf
+Chunk ID: d9d63706cb1bb0f1643b40d4a529e380
+Length: 403 characters
+Embedding Dim: 1024
+Model: bge-sentence-transformers
+--------------------------------------------------------------------------------
+Citations
+Store chunk metadata and return sources alongside answers.
+Scaling
+Use sharding, distributed vector DBs, and ANN indexes.
+Parent-Child Chunking
+Retrieve small chunks but return larger parent context for better grounding.
+Fix Hallucination
+Improve retrieval, enforce citations, use stricter prompts, or verification steps.
+Reduce Redundancy
+Lower overlap, deduplicate via similarity thresholds.
+================================================================================
+
+Chunk #10
+--------------------------------------------------------------------------------
+Document: RAG_Complete_Guide.pdf
+Chunk ID: c12136cba374074833b75adec49c386e
+Length: 462 characters
+Embedding Dim: 1024
+Model: bge-sentence-transformers
+--------------------------------------------------------------------------------
+Speed Retrieval
+Use ANN (FAISS), caching, and filtering.
+Deduplication
+Cluster similar embeddings and remove near-duplicates.
+Access Control
+Use metadata-based filtering with user permissions.
+Domain Jargon
+Use domain-specific embeddings or fine-tuning.
+Multimodal RAG
+Add OCR, image embeddings, and multimodal models.
+Versioning
+Track document versions and timestamps.
+Fix Multi-hop Failures
+Use agents, decomposition, and iterative retrieval.
+Resolve Conflicts
+================================================================================
+
+Chunk #11
+--------------------------------------------------------------------------------
+Document: RAG_Complete_Guide.pdf
+Chunk ID: b16eaf4bb34019d8f38b015f9e04fe26
+Length: 240 characters
+Embedding Dim: 1024
+Model: bge-sentence-transformers
+--------------------------------------------------------------------------------
+Add OCR, image embeddings, and multimodal models.
+Versioning
+Track document versions and timestamps.
+Fix Multi-hop Failures
+Use agents, decomposition, and iterative retrieval.
+Resolve Conflicts
+Rank sources by trust, recency, and consensus.
+================================================================================
+
+Chunk #12
+--------------------------------------------------------------------------------
+Document: RAG_Complete_Guide.pdf
+Chunk ID: a154b0e67d45637848de2e51fded5a0b
+Length: 132 characters
+Embedding Dim: 1024
+Model: bge-sentence-transformers
+--------------------------------------------------------------------------------
+Keep Data Current
+Frequent re-indexing and freshness scoring.
+PDF Parsing
+Use layout-aware parsers, OCR, and table extraction tools.
+================================================================================
+

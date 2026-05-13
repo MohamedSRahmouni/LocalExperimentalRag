@@ -1,0 +1,24 @@
+{
+  "filename": "Mohamed Saleh Rahmouni CV (1).pdf",
+  "chunk_count": 9,
+  "embedding_stats": {
+    "total_chunks": 9,
+    "embedding_dim": 1024,
+    "model_name": "./app/scripts/models/bge-m3",
+    "model_type": "bge-sentence-transformers",
+    "text_stats": {
+      "min_length": 564,
+      "max_length": 997,
+      "avg_length": 894.5555555555555,
+      "total_characters": 8051
+    },
+    "embedding_stats": {
+      "mean_norm": 1.000000039765199,
+      "std_norm": 5.782379893937588e-08
+    }
+  },
+  "embedded_at": "2026-05-12T18:58:58.077345",
+  "model": "./app/scripts/models/bge-m3",
+  "model_type": "bge-sentence-transformers",
+  "embedding_dim": 1024
+}

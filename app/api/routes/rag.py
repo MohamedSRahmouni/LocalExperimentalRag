@@ -190,36 +190,47 @@ async def ask_question_stream(request: Request):
 async def get_rag_status():
     """
     Get RAG system status
-    
-    **Response:**
-    ```json
-    {
-        "rag_available": true,
-        "lm_studio_available": true,
-        "retrieval_available": true,
-        "model": "gemma-2b",
-        "lm_studio_url": "http://localhost:1234"
-    }
-    ```
     """
-    
     rag_service = get_rag_service()
     lm_studio_service = get_lm_studio_service()
     
     status = {
         "rag_available": rag_service is not None,
-        "lm_studio_available": lm_studio_service is not None and lm_studio_service.is_available() if lm_studio_service else False,
-        "retrieval_available": rag_service is not None and rag_service.retrieval_service is not None
+        "lm_studio_available": (
+            lm_studio_service is not None and
+            lm_studio_service.is_available()
+            if lm_studio_service else False
+        ),
+        "retrieval_available": (
+            rag_service is not None and
+            rag_service.retrieval_service is not None
+        )
     }
     
-    if lm_studio_service:
-        status["model"] = lm_studio_service.config.model
-        status["lm_studio_url"] = lm_studio_service.config.base_url
-        status["temperature"] = lm_studio_service.config.temperature
-        status["max_tokens"] = lm_studio_service.config.max_tokens
+    # ── Get model info from rag_service directly ───────────────
+    # RAGConfig has no 'model' field
+    # model info is stored on LangChainRAGService itself
+    if rag_service:
+        status["model"]         = rag_service.lm_studio_model
+        status["lm_studio_url"] = rag_service.lm_studio_url
+        status["temperature"]   = rag_service.config.temperature
+        status["max_tokens"]    = rag_service.config.max_tokens
+        status["top_k"]         = rag_service.config.top_k
+        status["min_score"]     = rag_service.config.min_score
+        status["language"]      = rag_service.config.language
+    
+    elif lm_studio_service:
+        # Fallback: try lm_studio_service if it has these attrs
+        status["model"]         = getattr(
+            lm_studio_service, 'model',
+            getattr(lm_studio_service, 'lm_studio_model', 'unknown')
+        )
+        status["lm_studio_url"] = getattr(
+            lm_studio_service, 'base_url',
+            getattr(lm_studio_service, 'lm_studio_url', 'unknown')
+        )
     
     return JSONResponse(status)
-
 
 @router.post("/rag/test")
 async def test_rag():

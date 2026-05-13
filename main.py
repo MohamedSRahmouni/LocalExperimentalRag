@@ -7,7 +7,26 @@ import sys
 import os
 import warnings
 import multiprocessing
+import types
+import importlib.util
+# ============================================================================
+def _create_flash_attn_mock(name):
+    mock = types.ModuleType(name)
+    mock.__spec__ = importlib.util.spec_from_loader(name, loader=None)
+    mock.__spec__.submodule_search_locations = []
+    mock.flash_attn_func = None
+    mock.flash_attn_varlen_func = None
+    mock.flash_attn_with_kvcache = None
+    return mock
 
+for _mod in [
+    "flash_attn",
+    "flash_attn.flash_attn_interface",
+    "flash_attn.bert_padding",
+    "flash_attn.flash_attn_utils"
+]:
+    if _mod not in sys.modules:
+        sys.modules[_mod] = _create_flash_attn_mock(_mod)
 # ============================================================================
 # WINDOWS MULTIPROCESSING FIX - MUST BE AT THE TOP
 # ============================================================================

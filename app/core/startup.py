@@ -6,12 +6,7 @@ Handles service initialization and cleanup
 import logging
 from app.core.config import settings
 from app.api.dependencies import (
-    initialize_document_processor,
-    initialize_embedding_manager,
-    initialize_weaviate,
-    initialize_lm_studio,
-    initialize_retrieval_service,   # ✅ AJOUTER
-    initialize_rag_service,         # ✅ AJOUTER
+    initialize_all,
     get_doc_processor,
     get_embedding_manager,
     get_weaviate_client,
@@ -41,16 +36,7 @@ async def startup_event():
     # Initialize services
     try:
         # Core services
-        initialize_document_processor()
-        initialize_embedding_manager()
-        initialize_weaviate()
-        
-        # LM Studio
-        initialize_lm_studio()
-        
-        # ✅ AJOUTER CES 2 LIGNES CRITIQUES:
-        initialize_retrieval_service()
-        initialize_rag_service()
+        initialize_all()
         
         logger.info("="*80)
         logger.info("✅ All services initialized successfully!")
