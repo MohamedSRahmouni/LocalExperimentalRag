@@ -1,74 +1,50 @@
-# test_qwen.py
-import os
-import sys
-import types
-import importlib.util
-import traceback
-import torch
+# test_docling.py  (run: python test_docling.py)
+"""Quick diagnostic for Docling availability"""
 
-print("Testing Qwen2 loading...")
+print("=" * 60)
+print("🔍 DOCLING DIAGNOSTIC")
+print("=" * 60)
 
-# ================================================================
-# FIX: Mock flash_attn
-# ================================================================
-def create_mock_module(name):
-    mock = types.ModuleType(name)
-    mock.__spec__ = importlib.util.spec_from_loader(name, loader=None)
-    mock.__spec__.submodule_search_locations = []
-    mock.flash_attn_func = None
-    mock.flash_attn_varlen_func = None
-    mock.flash_attn_with_kvcache = None
-    return mock
+# Test 1: Import
+try:
+    import docling
+    print(f"✅ docling installed: {docling.__version__}")
+except ImportError as e:
+    print(f"❌ docling NOT installed: {e}")
+    print("   Fix: pip install docling")
 
-for mod_name in [
-    "flash_attn",
-    "flash_attn.flash_attn_interface",
-    "flash_attn.bert_padding",
-    "flash_attn.flash_attn_utils"
-]:
-    sys.modules[mod_name] = create_mock_module(mod_name)
+# Test 2: DocumentConverter
+try:
+    from docling.document_converter import DocumentConverter
+    print("✅ DocumentConverter importable")
+except ImportError as e:
+    print(f"❌ DocumentConverter import failed: {e}")
 
-print("✅ flash_attn mock installed")
+# Test 3: Instantiate
+try:
+    from docling.document_converter import DocumentConverter
+    conv = DocumentConverter()
+    print("✅ DocumentConverter instantiated")
+except Exception as e:
+    print(f"❌ DocumentConverter init failed: {e}")
+    print(f"   Error type: {type(e).__name__}")
 
-import transformers
-print(f"Transformers version: {transformers.__version__}")
+# Test 4: pandas + tabulate (needed for to_markdown)
+try:
+    import pandas as pd
+    print(f"✅ pandas: {pd.__version__}")
+    df = pd.DataFrame({"A": [1], "B": [2]})
+    md = df.to_markdown(index=False)
+    print(f"✅ to_markdown() works: {md[:30]}")
+except ImportError as e:
+    print(f"❌ pandas/tabulate issue: {e}")
+    print("   Fix: pip install pandas tabulate")
 
-from transformers import AutoTokenizer, AutoModel
+# Test 5: pdfplumber fallback
+try:
+    import pdfplumber
+    print(f"✅ pdfplumber available (fallback)")
+except ImportError:
+    print("❌ pdfplumber not available")
 
-model_id = "Alibaba-NLP/gte-Qwen2-1.5B-instruct"
-
-print("Loading tokenizer...")
-tokenizer = AutoTokenizer.from_pretrained(
-    model_id,
-    trust_remote_code=True,
-    use_fast=True
-)
-print(f"✅ Tokenizer: {tokenizer.__class__.__name__}")
-
-print("Loading model...")
-model = AutoModel.from_pretrained(
-    model_id,
-    trust_remote_code=True,
-    torch_dtype=torch.float32,
-    attn_implementation="eager"
-    # low_cpu_mem_usage RETIRÉ (nécessite accelerate)
-)
-model.eval()
-print(f"✅ Model: {model.__class__.__name__}")
-
-# Test embedding
-print("\nTesting embedding...")
-encoded = tokenizer(
-    ["Hello world"],
-    padding=True,
-    truncation=True,
-    max_length=512,
-    return_tensors='pt'
-)
-
-with torch.no_grad():
-    output = model(**encoded)
-
-dim = output.last_hidden_state.shape[-1]
-print(f"✅ Embedding dimension: {dim}")
-print("\n🎉 SUCCESS!")
+print("=" * 60)

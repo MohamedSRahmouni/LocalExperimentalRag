@@ -18,13 +18,18 @@ langchain-openai==0.0.5
 langchain-weaviate==0.0.1
 
 # ============================================================
-# Document Loaders
+# Document Processing (PDF / DOC / Tables)
 # ============================================================
 pdfplumber==0.10.3
 python-docx==1.1.0
 extract-msg==0.28.0
 beautifulsoup4==4.12.2
 csvkit==1.1.1
+
+# ✔ TABLE SUPPORT
+pandas==2.2.2
+tabulate==0.9.0
+
 
 # ============================================================
 # OCR
@@ -33,15 +38,15 @@ easyocr==1.7.1
 pdf2image==1.16.3
 pillow==10.1.0
 opencv-python==4.8.1.78
+camelot-py==0.11.0
+ghostscript==0.7
 
 # ============================================================
 # Embeddings & ML
 # ============================================================
-# FIX: 2.2.2 incompatible with modern huggingface_hub
-# cached_download removed from huggingface_hub >= 0.16
 sentence-transformers==2.7.0
-torch==2.1.0
-transformers==4.40.0
+torch>=2.6.0,<3.0.0
+transformers==4.41.2
 numpy==1.26.4
 accelerate>=0.27.0
 huggingface_hub>=0.23.0,<1.0.0
@@ -76,6 +81,8 @@ python-magic==0.4.27
 chardet==5.2.0
 psutil>=5.9.0
 
-# ── Search ────────────────────────────────────────────────────
+# ============================================================
+# Search / Reranking
+# ============================================================
 rank-bm25==0.2.2
 nltk==3.8.1

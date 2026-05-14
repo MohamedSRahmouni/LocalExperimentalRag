@@ -1,5 +1,5 @@
 """
-RAG Chain Pipeline
+RAG Chain Pipeline - OPTIMIZED
 LangChain-powered RAG with BM25 + Vector Hybrid Search
 """
 
@@ -63,8 +63,8 @@ class RetrievalConfig:
         min_score: float = 0.3,
         max_context_length: int = 4000,
         enable_reranking: bool = True,
-        diversity_weight: float = 0.0,   # ← FIXED: was 0.1, kills RRF order
-        recency_weight: float = 0.0,     # ← FIXED: was 0.05, irrelevant noise
+        diversity_weight: float = 0.0,
+        recency_weight: float = 0.0,
         use_hybrid: bool = True,
         bm25_weight: float = 0.4,
         vector_weight: float = 0.6
@@ -135,7 +135,6 @@ class BM25Index:
             'il', 'elle', 'nous', 'vous', 'ils', 'elles',
             'sur', 'dans', 'par', 'pour', 'avec', 'sans',
             'plus', 'mais', 'donc', 'car', 'ni', 'or',
-            # English - removed 'a' to keep it as standalone term
             'the', 'an', 'is', 'are', 'was', 'were',
             'of', 'in', 'on', 'at', 'to', 'for', 'with',
             'this', 'that', 'these', 'those', 'it', 'its',
@@ -146,8 +145,6 @@ class BM25Index:
             'from', 'by', 'about', 'as', 'into', 'through'
         }
 
-        # ← FIXED: was len(t) > 2 (excluded 'rag', 'ai', etc.)
-        #          now len(t) >= 2 keeps short technical terms
         return [
             t for t in tokens
             if t not in stop_words and len(t) >= 2
@@ -174,6 +171,7 @@ class BM25Index:
 
         except ImportError:
             logger.error("❌ rank-bm25 not installed!")
+            logger.error("   pip install rank-bm25")
             return False
         except Exception as e:
             logger.error(f"❌ BM25 build: {e}")
@@ -193,7 +191,7 @@ class BM25Index:
             if not tokenized:
                 return []
 
-            logger.info(f"🔑 BM25 tokens: {tokenized}")
+            logger.debug(f"🔑 BM25 tokens: {tokenized}")
             scores = self.index.get_scores(tokenized)
 
             top_idx = sorted(
@@ -213,12 +211,7 @@ class BM25Index:
                 chunk['bm25_raw_score'] = float(scores[idx])
                 results.append(chunk)
 
-            logger.info(f"✅ BM25: {len(results)} results")
-            if results:
-                logger.info(
-                    f"   Top: bm25={results[0]['bm25_score']:.3f} | "
-                    f"{results[0].get('text', '')[:80]}..."
-                )
+            logger.debug(f"✅ BM25: {len(results)} results")
             return results
 
         except Exception as e:
@@ -231,7 +224,7 @@ class BM25Index:
 # ============================================================
 
 class RetrievalService:
-    """Retrieval with BM25 + Vector + RRF"""
+    """Retrieval with BM25 + Vector + RRF - OPTIMIZED"""
 
     def __init__(
         self,
@@ -261,7 +254,7 @@ class RetrievalService:
         min_score: Optional[float] = None,
         filters: Optional[Dict] = None
     ) -> RetrievalResult:
-        """Main retrieval"""
+        """Main retrieval - OPTIMIZED"""
 
         start_time = time.time()
         top_k      = top_k     or self.config.top_k
@@ -273,8 +266,9 @@ class RetrievalService:
             f"{'Hybrid BM25+Vector' if self.config.use_hybrid else 'Vector'}"
         )
 
+        # OPTIMIZED: Limit to 2 variants max
         query_variants = self._generate_query_variants(query)
-        logger.info(f"📝 Variants: {query_variants}")
+        logger.info(f"📝 Variants ({len(query_variants)}): {query_variants}")
 
         # ── Search ─────────────────────────────────────────────
         if self.config.use_hybrid:
@@ -330,19 +324,26 @@ class RetrievalService:
         # ── Log ────────────────────────────────────────────────
         logger.info("📋 Final chunks:")
         for i, chunk in enumerate(retrieved_chunks, 1):
+            chunk_type = chunk.metadata.get('type', 'text')
             logger.info(
-                f"   #{i} final={chunk.score:.4f} | "
+                f"   #{i} score={chunk.score:.4f} | "
                 f"vec={chunk.vector_score:.3f} | "
                 f"bm25={chunk.bm25_score:.3f} | "
+                f"type={chunk_type} | "
                 f"src={chunk.source}"
             )
-            logger.info(f"       {chunk.text[:120].strip()}...")
+            if chunk_type == 'table':
+                caption = chunk.metadata.get('caption', '')
+                logger.info(f"       [TABLE: {caption}]")
+            else:
+                logger.info(f"       {chunk.text[:100].strip()}...")
 
+        # ── Context (table-aware) ──────────────────────────────
         context        = self._construct_context(retrieved_chunks)
         retrieval_time = time.time() - start_time
 
         logger.info(
-            f"✅ Done in {retrieval_time:.3f}s | "
+            f"✅ Retrieval done in {retrieval_time:.3f}s | "
             f"{len(retrieved_chunks)} chunks | "
             f"{len(context)} chars"
         )
@@ -362,7 +363,7 @@ class RetrievalService:
         )
 
     # ============================================================
-    # HYBRID
+    # HYBRID - OPTIMIZED
     # ============================================================
 
     def _hybrid_retrieve(
@@ -375,17 +376,15 @@ class RetrievalService:
     ) -> List[Dict]:
         """BM25 + Vector + RRF"""
 
-        # Vector
         logger.info("🔢 Vector search...")
         vector_results = self._vector_retrieve(
             query_variants=query_variants,
-            top_k=top_k * 4,
+            top_k=top_k * 3,  # Reduced from 4 to 3
             min_score=min_score * 0.6,
             filters=filters
         )
         logger.info(f"   Vector: {len(vector_results)}")
 
-        # BM25
         bm25_results = []
         if vector_results:
             logger.info("📚 Building BM25...")
@@ -405,7 +404,6 @@ class RetrievalService:
             bm25_results = list(all_bm25.values())
             logger.info(f"   BM25: {len(bm25_results)}")
 
-        # RRF
         logger.info("🔀 RRF fusion...")
         fused = self._rrf(
             vector_results=vector_results,
@@ -422,9 +420,11 @@ class RetrievalService:
         min_score: float,
         filters: Optional[Dict]
     ) -> List[Dict]:
-        """Vector search"""
+        """Vector search - deduplicates by chunk_id"""
         all_chunks = {}
-        for variant in query_variants:
+        
+        for i, variant in enumerate(query_variants, 1):
+            logger.debug(f"   Variant {i}/{len(query_variants)}: '{variant}'")
             chunks = self.vectorstore.semantic_search(
                 query_text=variant,
                 embedder=None,
@@ -432,6 +432,7 @@ class RetrievalService:
                 min_score=min_score,
                 filters=filters
             )
+            
             for c in chunks:
                 cid = c.get('chunk_id', '')
                 if (cid not in all_chunks or
@@ -441,6 +442,7 @@ class RetrievalService:
 
         results = list(all_chunks.values())
         results.sort(key=lambda x: x.get('similarity', 0), reverse=True)
+        logger.info(f"   Unique chunks: {len(results)}")
         return results
 
     # ============================================================
@@ -457,9 +459,8 @@ class RetrievalService:
         """Reciprocal Rank Fusion"""
 
         rrf_scores = {}
-        chunk_data  = {}
+        chunk_data = {}
 
-        # Vector contribution
         for rank, chunk in enumerate(vector_results, 1):
             cid   = chunk.get('chunk_id', f'v{rank}')
             score = self.config.vector_weight * (1.0 / (k + rank))
@@ -468,7 +469,6 @@ class RetrievalService:
                 chunk_data[cid] = chunk.copy()
                 chunk_data[cid]['bm25_score'] = 0.0
 
-        # BM25 contribution
         for rank, chunk in enumerate(bm25_results, 1):
             cid   = chunk.get('chunk_id', f'b{rank}')
             score = self.config.bm25_weight * (1.0 / (k + rank))
@@ -478,7 +478,6 @@ class RetrievalService:
                 chunk_data[cid]['similarity'] = 0.0
             chunk_data[cid]['bm25_score'] = chunk.get('bm25_score', 0.0)
 
-        # Build results
         results = []
         for cid, rrf_score in rrf_scores.items():
             c = chunk_data[cid].copy()
@@ -487,21 +486,19 @@ class RetrievalService:
 
         results.sort(key=lambda x: x['final_score'], reverse=True)
 
-        # Log top 5
-        logger.info("🔀 RRF top results:")
-        for i, r in enumerate(results[:5], 1):
-            logger.info(
-                f"   #{i} rrf={r['final_score']:.4f} | "
-                f"vec={r.get('similarity', 0):.3f} | "
-                f"bm25={r.get('bm25_score', 0):.3f} | "
-                f"src={r.get('metadata', {}).get('filename', '?')} | "
-                f"text={r.get('text', '')[:60]}..."
-            )
+        if results:
+            logger.debug("🔀 RRF top 3:")
+            for i, r in enumerate(results[:3], 1):
+                logger.debug(
+                    f"   #{i} rrf={r['final_score']:.4f} | "
+                    f"vec={r.get('similarity', 0):.3f} | "
+                    f"bm25={r.get('bm25_score', 0):.3f}"
+                )
 
         return results[:top_k]
 
     # ============================================================
-    # RE-RANK - FIXED
+    # RE-RANK
     # ============================================================
 
     def _rerank_chunks(
@@ -510,100 +507,79 @@ class RetrievalService:
         chunks: List[Dict],
         top_k: int
     ) -> List[Dict]:
-        """
-        Re-rank: ONLY by RRF/final score.
-        Diversity and recency removed — they were demoting relevant chunks.
-        """
-        # Sort purely by the score RRF already computed
+        """Re-rank by final score"""
         chunks_sorted = sorted(
             chunks,
             key=lambda x: x.get('final_score', x.get('similarity', 0.0)),
             reverse=True
         )
 
-        logger.info(f"🔄 Re-ranked {len(chunks_sorted)} → top {top_k}")
-
-        # Log to verify correct order is preserved
-        for i, c in enumerate(chunks_sorted[:top_k], 1):
-            logger.info(
-                f"   #{i} final={c.get('final_score', 0):.4f} | "
-                f"vec={c.get('similarity', 0):.3f} | "
-                f"bm25={c.get('bm25_score', 0):.3f} | "
-                f"src={c.get('metadata', {}).get('filename', '?')} | "
-                f"text={c.get('text', '')[:60]}..."
-            )
-
+        logger.debug(f"🔄 Re-ranked {len(chunks_sorted)} → top {top_k}")
         return chunks_sorted[:top_k]
 
     # ============================================================
-    # QUERY VARIANTS - FIXED
+    # QUERY VARIANTS - OPTIMIZED
     # ============================================================
 
     def _generate_query_variants(self, query: str) -> List[str]:
         """
-        Generate query variants.
-        Keeps technical short terms (rag, ai, llm, etc.)
-        Adds individual term variants for better BM25 recall.
+        Generate query variants - OPTIMIZED
+        
+        Returns max 2 variants:
+        1. Original query
+        2. Keywords only (if different)
         """
         variants  = [query]
         query_low = query.lower().strip()
 
-        # Technical terms that must NEVER be filtered out
-        technical_terms = {
-            'rag', 'llm', 'ai', 'ml', 'nlp', 'api',
-            'bm25', 'rrf', 'gpu', 'cpu', 'sql', 'cv',
-            'ocr', 'pdf', 'ui', 'ux', 'db', 'qa'
-        }
-
+        # Expanded stop words
         stop_words = {
+            # French
             'le', 'la', 'les', 'un', 'une', 'des', 'du', 'de',
             'et', 'ou', 'en', 'à', 'au', 'aux', 'ce', 'se',
             'est', 'son', 'sa', 'ses', "c'est", "qu'est",
             'que', 'qui', 'quoi', 'dont', 'quel', 'quelle',
             'comment', 'pourquoi', 'quand', 'combien',
             'dans', 'sur', 'par', 'pour', 'avec', 'sans',
-            # English — removed 'a' to avoid filtering 'a' in acronyms
+            'moi', 'toi', 'me', 'te', 'se', 'nous', 'vous',
+            'donne', 'donner', 'montre', 'montrer',
+            'explique', 'expliquer', 'dis', 'dire',
+            # English
             'the', 'an', 'is', 'are', 'of', 'in', 'on',
             'what', 'how', 'why', 'who', 'when', 'where',
             'and', 'or', 'but', 'not', 'with', 'from',
+            'give', 'show', 'tell', 'explain',
         }
 
-        words    = query_low.split()
-        keywords = []
+        # Extract keywords
+        words = [
+            w for w in query_low.split() 
+            if w not in stop_words and len(w) >= 2
+        ]
 
-        for w in words:
-            # Always keep technical terms regardless of length
-            if w in technical_terms:
-                keywords.append(w)
-            # Keep if not a stop word and length >= 2 (was > 2)
-            elif w not in stop_words and len(w) >= 2:
-                keywords.append(w)
+        # Add keyword-only variant if different
+        if words and len(words) < len(query_low.split()):
+            kw_variant = " ".join(words)
+            if kw_variant not in variants:
+                variants.append(kw_variant)
+                logger.info(f"🔑 Keyword variant: '{kw_variant}'")
 
-        # Add combined keyword variant
-        if keywords:
-            kw = " ".join(keywords)
-            if kw.lower() not in [v.lower() for v in variants]:
-                variants.append(kw)
-                logger.info(f"🔑 Keyword variant: '{kw}'")
-
-        # Add individual term variants for better BM25 single-term recall
-        if len(keywords) > 1:
-            for kw in keywords:
-                if kw not in [v.lower() for v in variants]:
-                    variants.append(kw)
-                    logger.info(f"🔑 Single term variant: '{kw}'")
-
-        return variants
+        return variants[:2]  # MAX 2 variants
 
     # ============================================================
-    # CONTEXT
+    # CONTEXT - TABLE AWARE
     # ============================================================
 
     def _construct_context(
         self,
         chunks: List[RetrievedChunk]
     ) -> str:
-        """Build context string"""
+        """
+        Build context string - table-aware
+        
+        Text chunk  → [Source: file.pdf]\ntext
+        Table chunk → [TABLE — Source: file.pdf | Caption]\n\n| md | table |
+        """
         if not chunks:
             return ""
 
@@ -611,14 +587,28 @@ class RetrievalService:
         total = 0
 
         for chunk in chunks:
-            text = f"[Source: {chunk.source}]\n{chunk.text}\n"
-            if total + len(text) > self.config.max_context_length:
+            is_table = chunk.metadata.get("is_table", False)
+            caption  = chunk.metadata.get("caption", "")
+
+            if is_table:
+                # Table block
+                header = f"[TABLE — Source: {chunk.source}"
+                if caption:
+                    header += f" | {caption}"
+                header += "]"
+                block = f"{header}\n\n{chunk.text}"
+            else:
+                # Text block
+                block = f"[Source: {chunk.source}]\n{chunk.text}\n"
+
+            if total + len(block) > self.config.max_context_length:
                 logger.warning(f"⚠️  Context limit at chunk #{chunk.rank}")
                 break
-            parts.append(text)
-            total += len(text)
 
-        return "\n---\n".join(parts)
+            parts.append(block)
+            total += len(block)
+
+        return "\n\n---\n\n".join(parts)
 
     def _empty_result(self, query: str, reason: str) -> RetrievalResult:
         return RetrievalResult(
@@ -633,7 +623,7 @@ class RetrievalService:
 # ============================================================
 
 class LangChainRAGService:
-    """Complete RAG with Hybrid Search"""
+    """Complete RAG with Hybrid Search + Table-aware generation"""
 
     def __init__(
         self,
@@ -667,8 +657,8 @@ class LangChainRAGService:
                 use_hybrid=self.config.use_hybrid,
                 bm25_weight=self.config.bm25_weight,
                 vector_weight=self.config.vector_weight,
-                diversity_weight=0.0,   # ← FIXED: was 0.1
-                recency_weight=0.0      # ← FIXED: was 0.05
+                diversity_weight=0.0,
+                recency_weight=0.0
             )
         )
 
@@ -681,8 +671,6 @@ class LangChainRAGService:
         logger.info(f"   Top-K      : {self.config.top_k}")
         logger.info(f"   Min Score  : {self.config.min_score}")
         logger.info(f"   Hybrid     : {self.config.use_hybrid}")
-        logger.info(f"   BM25       : {self.config.bm25_weight}")
-        logger.info(f"   Vector     : {self.config.vector_weight}")
         logger.info("=" * 70)
 
     def _init_llm(self):
@@ -713,6 +701,40 @@ class LangChainRAGService:
             return False
 
     # ============================================================
+    # PROMPT BUILDER
+    # ============================================================
+
+    def _build_prompt(
+        self,
+        question: str,
+        context: str,
+        history_text: str
+    ) -> str:
+        """
+        Build LLM prompt - table-aware
+        
+        Key: When context has markdown tables, reproduce them exactly
+        """
+        prompt = (
+            "You are a precise and helpful assistant.\n"
+            "Answer ONLY using the information in CONTEXT below.\n\n"
+            "CRITICAL RULES:\n"
+            "• If CONTEXT contains a markdown table, reproduce it EXACTLY\n"
+            "• Do NOT convert tables to prose or bullet points\n"
+            "• Keep table formatting with | pipes | and headers\n"
+            "• Be concise and direct\n"
+            "• If answer not in context, say so clearly\n\n"
+            f"CONTEXT:\n{context}\n\n"
+        )
+
+        if history_text:
+            prompt += f"CONVERSATION HISTORY:\n{history_text}\n\n"
+
+        prompt += f"QUESTION: {question}\n\nANSWER:"
+
+        return prompt
+
+    # ============================================================
     # ASK
     # ============================================================
 
@@ -722,11 +744,11 @@ class LangChainRAGService:
         conversation_history: Optional[List[Dict[str, str]]] = None,
         session_id: str = "default"
     ) -> Dict[str, Any]:
-        """Ask with hybrid search"""
+        """Ask with hybrid search + table-aware generation"""
 
         logger.info("=" * 60)
-        logger.info(f"💬 Question : '{question}'")
-        logger.info(f"   Session  : {session_id}")
+        logger.info(f"💬 Question: '{question}'")
+        logger.info(f"   Session: {session_id}")
         logger.info("=" * 60)
 
         # ── Step 1: Retrieve ───────────────────────────────────
@@ -748,42 +770,36 @@ class LangChainRAGService:
                 "sources": [],
                 "metadata": {
                     "retrieval_time": retrieval_result.retrieval_time,
-                    "chunks_found": 0,
-                    "session_id": session_id
+                    "chunks_found":   0,
+                    "session_id":     session_id
                 }
             }
 
         # ── Step 2: History ────────────────────────────────────
         if conversation_history:
-            self.memory_manager.load_history(
-                session_id, conversation_history
-            )
+            self.memory_manager.load_history(session_id, conversation_history)
 
         history      = self.memory_manager.get_history(session_id)
         history_text = ""
         if history:
             for msg in history[-4:]:
-                role = "User" if msg['role'] == 'user' else "Assistant"
+                role          = "User" if msg['role'] == 'user' else "Assistant"
                 history_text += f"{role}: {msg['content']}\n"
 
         # ── Step 3: Prompt ─────────────────────────────────────
-        full_prompt = (
-            "You are a helpful assistant. "
-            "Answer the question using ONLY the context below. "
-            "Be direct and specific. "
-            "If the answer is not in the context, say so.\n\n"
-            f"CONTEXT:\n{retrieval_result.context}\n\n"
+        full_prompt = self._build_prompt(
+            question=question,
+            context=retrieval_result.context,
+            history_text=history_text
         )
-        if history_text:
-            full_prompt += f"CONVERSATION HISTORY:\n{history_text}\n"
-        full_prompt += f"QUESTION: {question}\n\nANSWER:"
 
         logger.info("=" * 70)
         logger.info("📤 PROMPT:")
         logger.info("=" * 70)
-        logger.info(full_prompt)
+        logger.info(full_prompt[:800])
+        if len(full_prompt) > 800:
+            logger.info(f"... [{len(full_prompt)} total chars]")
         logger.info("=" * 70)
-        logger.info(f"📏 {len(full_prompt)} chars")
 
         # ── Step 4: Generate ───────────────────────────────────
         try:
@@ -791,19 +807,19 @@ class LangChainRAGService:
             raw_answer = self.llm.invoke(full_prompt).content
             gen_time   = time.time() - t0
 
-            logger.info(f"⏱️  {gen_time:.2f}s")
-            logger.info(f"🤖 Raw: '{raw_answer}'")
+            logger.info(f"⏱️  Generation: {gen_time:.2f}s")
+            logger.info(f"🤖 Raw answer: {len(raw_answer)} chars")
 
             if not raw_answer or len(raw_answer.strip()) < 3:
                 return {
                     "success": False,
-                    "answer": "Le modèle n'a pas généré de réponse.",
+                    "answer":  "Le modèle n'a pas généré de réponse.",
                     "sources": [],
                     "metadata": {"error": "Empty response"}
                 }
 
             answer = self._post_process(raw_answer)
-            logger.info(f"✅ Answer: '{answer}'")
+            logger.info(f"✅ Final answer: {len(answer)} chars")
 
             self.memory_manager.add_message(
                 session_id=session_id,
@@ -812,38 +828,52 @@ class LangChainRAGService:
             )
 
         except Exception as e:
-            logger.error(f"❌ Generation: {e}")
+            logger.error(f"❌ Generation error: {e}")
             return {
                 "success": False,
-                "answer": "Erreur lors de la génération.",
+                "answer":  "Erreur lors de la génération de la réponse.",
                 "sources": [],
                 "metadata": {"error": str(e)}
             }
 
-        # ── Step 5: Response ───────────────────────────────────
+        # ── Step 5: Build sources ──────────────────────────────
+        table_chunks = 0
+        sources      = []
+
+        for c in retrieval_result.chunks:
+            is_table = c.metadata.get("is_table", False)
+            if is_table:
+                table_chunks += 1
+
+            sources.append({
+                "source":       c.source,
+                "relevance":    round(c.score, 3),
+                "vector_score": round(c.vector_score, 3),
+                "bm25_score":   round(c.bm25_score, 3),
+                "type":         "table" if is_table else "text",
+                "is_table":     is_table,
+                "caption":      c.metadata.get("caption"),
+                "page_no":      c.metadata.get("page_no"),
+                "text_preview": (
+                    c.text[:150] + "..."
+                    if len(c.text) > 150 else c.text
+                )
+            })
+
         return {
             "success": True,
             "answer":  answer,
-            "sources": [
-                {
-                    "source":       c.source,
-                    "relevance":    round(c.score, 3),
-                    "vector_score": round(c.vector_score, 3),
-                    "bm25_score":   round(c.bm25_score, 3),
-                    "text_preview": (
-                        c.text[:200] + "..."
-                        if len(c.text) > 200 else c.text
-                    )
-                }
-                for c in retrieval_result.chunks
-            ],
+            "sources": sources,
             "metadata": {
-                "retrieval_time": round(retrieval_result.retrieval_time, 3),
-                "chunks_found":   len(retrieval_result.chunks),
-                "model":          self.lm_studio_model,
-                "temperature":    self.config.temperature,
-                "session_id":     session_id,
-                "hybrid_search":  self.config.use_hybrid,
+                "retrieval_time":    round(retrieval_result.retrieval_time, 3),
+                "generation_time":   round(gen_time, 3),
+                "chunks_found":      len(retrieval_result.chunks),
+                "table_chunks_used": table_chunks,
+                "model":             self.lm_studio_model,
+                "temperature":       self.config.temperature,
+                "session_id":        session_id,
+                "hybrid_search":     self.config.use_hybrid,
+                "query_variants":    retrieval_result.metadata.get('query_variants', []),
                 "conversation_length": (
                     self.memory_manager.get_session_message_count(session_id)
                 )
@@ -860,7 +890,7 @@ class LangChainRAGService:
         conversation_history: Optional[List[Dict[str, str]]] = None,
         session_id: str = "default"
     ) -> Iterator[Dict]:
-        """Streaming ask"""
+        """Streaming ask - table-aware"""
 
         retrieval_result = self.retrieval_service.retrieve(
             query=question,
@@ -869,21 +899,28 @@ class LangChainRAGService:
         )
 
         if not retrieval_result.chunks:
-            yield {"type": "error", "content": "Aucune information trouvée."}
+            yield {
+                "type": "error",
+                "content": "Aucune information pertinente trouvée."
+            }
             return
 
+        # Emit sources
         yield {
             "type": "sources",
             "content": [
                 {
                     "source":     c.source,
                     "relevance":  round(c.score, 3),
-                    "bm25_score": round(c.bm25_score, 3)
+                    "bm25_score": round(c.bm25_score, 3),
+                    "type":       "table" if c.metadata.get("is_table") else "text",
+                    "caption":    c.metadata.get("caption"),
                 }
                 for c in retrieval_result.chunks
             ]
         }
 
+        # History
         if conversation_history:
             self.memory_manager.load_history(session_id, conversation_history)
 
@@ -891,18 +928,17 @@ class LangChainRAGService:
         history_text = ""
         if history:
             for msg in history[-4:]:
-                role = "User" if msg['role'] == 'user' else "Assistant"
+                role          = "User" if msg['role'] == 'user' else "Assistant"
                 history_text += f"{role}: {msg['content']}\n"
 
-        full_prompt = (
-            "You are a helpful assistant. "
-            "Answer ONLY from the context below.\n\n"
-            f"CONTEXT:\n{retrieval_result.context}\n\n"
+        # Prompt
+        full_prompt = self._build_prompt(
+            question=question,
+            context=retrieval_result.context,
+            history_text=history_text
         )
-        if history_text:
-            full_prompt += f"HISTORY:\n{history_text}\n"
-        full_prompt += f"QUESTION: {question}\n\nANSWER:"
 
+        # Stream
         try:
             streaming_llm = ChatOpenAI(
                 base_url=self.lm_studio_url,
@@ -929,14 +965,18 @@ class LangChainRAGService:
             yield {
                 "type": "metadata",
                 "content": {
-                    "chunks_found":  len(retrieval_result.chunks),
+                    "chunks_found":      len(retrieval_result.chunks),
+                    "table_chunks_used": sum(
+                        1 for c in retrieval_result.chunks
+                        if c.metadata.get("is_table")
+                    ),
                     "model":         self.lm_studio_model,
                     "hybrid_search": self.config.use_hybrid
                 }
             }
 
         except Exception as e:
-            logger.error(f"❌ Stream: {e}")
+            logger.error(f"❌ Stream error: {e}")
             yield {"type": "error", "content": str(e)}
 
     # ============================================================
@@ -944,30 +984,31 @@ class LangChainRAGService:
     # ============================================================
 
     def _post_process(self, answer: str) -> str:
-        """Clean output"""
+        """Clean LLM output - preserve markdown tables"""
         if not answer:
-            return "Information non trouvée"
+            return "Information non disponible"
 
         answer = answer.strip()
 
-        for prefix in [
+        # Remove common preambles
+        prefixes = [
             "Based on the context,",
             "Based on the provided context,",
             "According to the context,",
             "D'après le contexte,",
             "Selon le contexte,",
+            "Voici le tableau",
+            "Le tableau suivant",
             "ANSWER:", "RÉPONSE:",
-        ]:
+        ]
+        
+        for prefix in prefixes:
             if answer.lower().startswith(prefix.lower()):
                 answer = answer[len(prefix):].strip()
-                if answer:
+                if answer and not answer[0].isupper():
                     answer = answer[0].upper() + answer[1:]
 
         return answer.strip()
-
-    # ── backward compat alias ──────────────────────────────────
-    def _post_process_answer(self, answer: str, question: str) -> str:
-        return self._post_process(answer)
 
     # ============================================================
     # SESSION

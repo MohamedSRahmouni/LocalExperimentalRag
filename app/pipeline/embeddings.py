@@ -1,5 +1,5 @@
 """
-Embeddings Pipeline
+Embeddings Pipeline - FIXED
 LangChain-powered embedding generation with BGE-M3
 """
 
@@ -29,12 +29,11 @@ class BGEEmbeddings(Embeddings):
     BGE-M3 embeddings using sentence-transformers
     
     Features:
-        - Multi-lingual support (100+ languages)
+        - Multi-lingual (100+ languages)
         - 1024 dimensions
-        - Max sequence length: 8192 tokens
-        - Dense retrieval optimized
-        - No flash_attn dependency
-        - Low RAM usage (~2GB)
+        - Max 8192 tokens
+        - Offline mode
+        - Low RAM (~2GB)
     """
     
     def __init__(
@@ -54,12 +53,8 @@ class BGEEmbeddings(Embeddings):
         
         self._load_model()
     
-    # ============================================================
-    # PRIVATE: RAM MONITORING
-    # ============================================================
-    
     def _get_ram_usage(self) -> float:
-        """Get current process RAM usage in GB"""
+        """Get RAM usage in GB"""
         try:
             import psutil
             process = psutil.Process(os.getpid())
@@ -67,65 +62,50 @@ class BGEEmbeddings(Embeddings):
         except Exception:
             return 0.0
     
-    # ============================================================
-    # PRIVATE: MODEL LOADING
-    # ============================================================
     def _load_model(self):
-        """Load BGE-M3 model using sentence-transformers"""
+        """Load BGE-M3 - FIXED offline mode"""
         try:
             from sentence_transformers import SentenceTransformer
             import sentence_transformers
             
             logger.info(
-                f"📦 sentence-transformers version: "
+                f"📦 sentence-transformers: "
                 f"{sentence_transformers.__version__}"
             )
-            logger.info(f"⏳ Loading BGE model from: {self.model_path}")
-            logger.info(f"   Device          : {self.device}")
-            logger.info(f"   RAM before load : {self._get_ram_usage():.1f} GB")
+            logger.info(f"⏳ Loading BGE from: {self.model_path}")
+            logger.info(f"   Device: {self.device}")
+            logger.info(f"   RAM before: {self._get_ram_usage():.1f} GB")
             
-            # ── Set offline mode via env vars ─────────────────────
-            # SentenceTransformer 2.7.0 does not support
-            # local_files_only= as a constructor argument.
-            # Use environment variables instead.
-            import os
+            # ── FIXED: Set offline mode via environment ───────
             os.environ['TRANSFORMERS_OFFLINE'] = '1'
             os.environ['HF_DATASETS_OFFLINE'] = '1'
+            os.environ['HF_HUB_OFFLINE'] = '1'
             
-            # Load model - NO local_files_only kwarg
+            # Load model (no local_files_only kwarg in 2.7.0)
             self.model = SentenceTransformer(
                 self.model_path,
                 device=self.device
             )
             
-            # Set max sequence length
             self.model.max_seq_length = self.max_length
-            
             dim = self.model.get_sentence_embedding_dimension()
             
-            logger.info(
-                f"✅ BGE model loaded | "
-                f"RAM: {self._get_ram_usage():.1f} GB"
-            )
-            logger.info(f"   Dimension       : {dim}")
-            logger.info(f"   Max seq length  : {self.max_length}")
-            logger.info(f"   Normalize       : {self.normalize_embeddings}")
+            logger.info(f"✅ BGE loaded | RAM: {self._get_ram_usage():.1f} GB")
+            logger.info(f"   Dimension: {dim}")
+            logger.info(f"   Max length: {self.max_length}")
             
         except ImportError:
             logger.error("❌ sentence-transformers not installed!")
             logger.error("   pip install sentence-transformers==2.7.0")
             raise
         except Exception as e:
-            logger.error(f"❌ Failed to load BGE model: {e}")
+            logger.error(f"❌ Model load failed: {e}")
             import traceback
             traceback.print_exc()
             raise
-    # ============================================================
-    # PRIVATE: EMBEDDING
-    # ============================================================
     
     def _embed_batch(self, texts: List[str]) -> List[List[float]]:
-        """Embed a batch of texts with cleanup"""
+        """Embed batch with cleanup"""
         import gc
         
         try:
@@ -139,19 +119,14 @@ class BGEEmbeddings(Embeddings):
             
             result = embeddings.tolist()
             
-            # Cleanup
             del embeddings
             gc.collect()
             
             return result
             
         except Exception as e:
-            logger.error(f"❌ Batch embedding error: {e}")
+            logger.error(f"❌ Batch embed error: {e}")
             raise
-    
-    # ============================================================
-    # PUBLIC: LANGCHAIN INTERFACE
-    # ============================================================
     
     def embed_documents(self, texts: List[str]) -> List[List[float]]:
         """Embed multiple documents"""
@@ -159,9 +134,7 @@ class BGEEmbeddings(Embeddings):
             return []
         
         all_embeddings = []
-        total_batches = (
-            len(texts) + self.batch_size - 1
-        ) // self.batch_size
+        total_batches = (len(texts) + self.batch_size - 1) // self.batch_size
         
         for i in range(0, len(texts), self.batch_size):
             batch = texts[i:i + self.batch_size]
@@ -175,7 +148,7 @@ class BGEEmbeddings(Embeddings):
         return all_embeddings
     
     def embed_query(self, text: str) -> List[float]:
-        """Embed a single query"""
+        """Embed single query"""
         return self._embed_batch([text])[0]
 
 
@@ -185,14 +158,7 @@ class BGEEmbeddings(Embeddings):
 
 class LangChainEmbeddingManager:
     """
-    Unified embedding manager using LangChain + BGE-M3
-    
-    Features:
-        - BGE-M3 embeddings (1024D, multilingual)
-        - LangChain cache-backed embeddings
-        - Intermediate result saving
-        - Parallel/sequential processing
-        - Same public interface as before
+    Unified embedding manager - BGE-M3 + LangChain cache
     """
     
     def __init__(
@@ -213,44 +179,34 @@ class LangChainEmbeddingManager:
         self.save_intermediate = save_intermediate
         self.max_workers = max_workers
         
-        # Create directories
         self.cache_dir.mkdir(parents=True, exist_ok=True)
         self.output_dir.mkdir(parents=True, exist_ok=True)
         
-        # Initialize embeddings
         self._init_embeddings()
         
-        # Embedding dimension
         self.embedding_dim = self._get_embedding_dim()
         self._model_loaded = self.base_embeddings is not None
         
         logger.info("="*70)
         logger.info("✅ LangChainEmbeddingManager initialized")
-        logger.info(f"   Model        : {model_name}")
-        logger.info(f"   Type         : BGE-M3 (sentence-transformers)")
-        logger.info(f"   Device       : {'GPU' if use_gpu else 'CPU'}")
-        logger.info(f"   Dimension    : {self.embedding_dim}")
-        logger.info(f"   Batch size   : {batch_size}")
-        logger.info(f"   Cache dir    : {cache_dir}")
-        logger.info(f"   Workers      : {max_workers}")
+        logger.info(f"   Model      : {model_name}")
+        logger.info(f"   Type       : BGE-M3")
+        logger.info(f"   Device     : {'GPU' if use_gpu else 'CPU'}")
+        logger.info(f"   Dimension  : {self.embedding_dim}")
+        logger.info(f"   Batch size : {batch_size}")
+        logger.info(f"   Cache dir  : {cache_dir}")
         logger.info("="*70)
     
-    # ============================================================
-    # INITIALIZATION
-    # ============================================================
-    
     def _resolve_model_path(self) -> str:
-        """Resolve model path to absolute path"""
+        """Resolve model path"""
         model_path = self.model_name
         
         if model_path.startswith('./') or model_path.startswith('.\\'):
-            # Try direct path
             absolute_path = Path(model_path).resolve()
             if absolute_path.exists():
-                logger.info(f"✅ Model found at: {absolute_path}")
+                logger.info(f"✅ Model found: {absolute_path}")
                 return str(absolute_path)
             
-            # Try inside app/scripts/models/
             model_name_only = Path(model_path).name
             
             candidates = [
@@ -261,12 +217,9 @@ class LangChainEmbeddingManager:
             
             for candidate in candidates:
                 if candidate.resolve().exists():
-                    logger.info(
-                        f"✅ Model found at: {candidate.resolve()}"
-                    )
+                    logger.info(f"✅ Model found: {candidate.resolve()}")
                     return str(candidate.resolve())
             
-            # Not found - log all tried paths
             logger.error(f"❌ Model not found: {model_path}")
             for candidate in [absolute_path] + candidates:
                 logger.error(f"   Tried: {candidate.resolve()}")
@@ -276,12 +229,12 @@ class LangChainEmbeddingManager:
         return model_path
     
     def _init_embeddings(self):
-        """Initialize BGE embeddings with cache"""
+        """Initialize BGE with cache"""
         try:
             model_path = self._resolve_model_path()
-            device = 'cuda' if self.use_gpu else 'cpu'
+            device = 'cuda' 
+            #if self.use_gpu else 'cpu'
             
-            # Initialize BGE embeddings
             self.base_embeddings = BGEEmbeddings(
                 model_path=model_path,
                 device=device,
@@ -290,10 +243,7 @@ class LangChainEmbeddingManager:
                 normalize_embeddings=True
             )
             
-            # Cache-backed embeddings
-            cache_store = LocalFileStore(
-                str(self.cache_dir / "vectors")
-            )
+            cache_store = LocalFileStore(str(self.cache_dir / "vectors"))
             
             safe_namespace = (
                 model_path
@@ -309,7 +259,7 @@ class LangChainEmbeddingManager:
                 namespace=safe_namespace
             )
             
-            logger.info("✅ BGE Embeddings initialized with cache")
+            logger.info("✅ BGE embeddings initialized with cache")
             
         except FileNotFoundError as e:
             logger.error(f"❌ Model not found: {e}")
@@ -317,23 +267,20 @@ class LangChainEmbeddingManager:
             self.embeddings = None
             
         except Exception as e:
-            logger.error(f"❌ Failed to initialize embeddings: {e}")
+            logger.error(f"❌ Init failed: {e}")
             import traceback
             traceback.print_exc()
             self.base_embeddings = None
             self.embeddings = None
     
     def _get_embedding_dim(self) -> int:
-        """Get embedding dimension"""
+        """Get dimension"""
         try:
             test_embedding = self.base_embeddings.embed_query("test")
             dim = len(test_embedding)
-            logger.info(f"✅ Embedding dimension detected: {dim}")
+            logger.info(f"✅ Dimension detected: {dim}")
             return dim
-        except Exception as e:
-            logger.warning(f"⚠️  Could not detect dimension: {e}")
-            
-            # BGE defaults
+        except Exception:
             model_lower = self.model_name.lower()
             if 'bge-m3' in model_lower:
                 return 1024
@@ -341,17 +288,10 @@ class LangChainEmbeddingManager:
                 return 1024
             elif 'bge-base' in model_lower:
                 return 768
-            elif 'bge-small' in model_lower:
-                return 384
             else:
                 return 1024
     
-    # ============================================================
-    # PUBLIC INTERFACE
-    # ============================================================
-    
     def is_ready(self) -> bool:
-        """Check if embedding manager is ready"""
         return (
             self._model_loaded and
             self.base_embeddings is not None and
@@ -359,7 +299,6 @@ class LangChainEmbeddingManager:
         )
     
     def embed_query(self, text: str) -> List[float]:
-        """Embed a single query text"""
         if not self.is_ready():
             raise RuntimeError("Embedding manager not ready")
         return self.base_embeddings.embed_query(text)
@@ -369,7 +308,6 @@ class LangChainEmbeddingManager:
         document_data: Dict[str, Any],
         show_progress: bool = True
     ) -> Dict[str, Any]:
-        """Embed a single document"""
         if not self.is_ready():
             raise RuntimeError("Embedding manager not ready")
         return self._embed_document(document_data)
@@ -380,7 +318,6 @@ class LangChainEmbeddingManager:
         parallel: bool = False,
         show_progress: bool = True
     ) -> Dict[str, Any]:
-        """Embed multiple documents"""
         if not self.is_ready():
             raise RuntimeError("Embedding manager not ready")
         
@@ -404,9 +341,7 @@ class LangChainEmbeddingManager:
         if parallel and self.max_workers > 1:
             results = self._process_parallel(documents, results)
         else:
-            results = self._process_sequential(
-                documents, results, show_progress
-            )
+            results = self._process_sequential(documents, results, show_progress)
         
         duration = (datetime.now() - start_time).total_seconds()
         results['processing_time'] = duration
@@ -431,13 +366,13 @@ class LangChainEmbeddingManager:
         }
         
         logger.info("="*70)
-        logger.info("✅ BATCH EMBEDDING COMPLETE")
-        logger.info(f"   Total    : {results['total_documents']}")
-        logger.info(f"   Success  : {results['successful']}")
-        logger.info(f"   Failed   : {results['failed']}")
-        logger.info(f"   Chunks   : {results['total_chunks_embedded']}")
-        logger.info(f"   Time     : {duration:.2f}s")
-        logger.info(f"   Speed    : {results['statistics']['chunks_per_second']:.1f} chunks/s")
+        logger.info("✅ BATCH COMPLETE")
+        logger.info(f"   Total  : {results['total_documents']}")
+        logger.info(f"   Success: {results['successful']}")
+        logger.info(f"   Failed : {results['failed']}")
+        logger.info(f"   Chunks : {results['total_chunks_embedded']}")
+        logger.info(f"   Time   : {duration:.2f}s")
+        logger.info(f"   Speed  : {results['statistics']['chunks_per_second']:.1f} chunks/s")
         logger.info("="*70)
         
         return results
@@ -448,7 +383,6 @@ class LangChainEmbeddingManager:
         chunks_metadata: Optional[List[Dict[str, Any]]] = None,
         show_progress: bool = True
     ) -> List[Dict[str, Any]]:
-        """Embed raw text chunks directly"""
         if not self.is_ready():
             raise RuntimeError("Embedding manager not ready")
         
@@ -461,9 +395,7 @@ class LangChainEmbeddingManager:
             embeddings = self.embeddings.embed_documents(chunks)
             
             embedded_chunks = []
-            for i, (chunk_text, embedding) in enumerate(
-                zip(chunks, embeddings)
-            ):
+            for i, (chunk_text, embedding) in enumerate(zip(chunks, embeddings)):
                 chunk_id = self._generate_chunk_id(chunk_text)
                 metadata = (
                     chunks_metadata[i]
@@ -493,7 +425,6 @@ class LangChainEmbeddingManager:
             return []
     
     def get_system_info(self) -> Dict[str, Any]:
-        """Get system information"""
         return {
             'model_name': self.model_name,
             'model_type': 'bge-sentence-transformers',
@@ -508,45 +439,34 @@ class LangChainEmbeddingManager:
                 'multilingual',
                 'dense-retrieval',
                 'normalized-embeddings',
-                'cache-backed'
+                'cache-backed',
+                'offline-mode'
             ]
         }
     
     def clear_cache(self):
-        """Clear embedding cache"""
         try:
             cache_path = self.cache_dir / "vectors"
             if cache_path.exists():
                 import shutil
                 shutil.rmtree(cache_path)
                 cache_path.mkdir(parents=True)
-                logger.info("✅ Vector cache cleared")
+                logger.info("✅ Cache cleared")
         except Exception as e:
             logger.warning(f"⚠️  Cache clear error: {e}")
     
-    # ============================================================
-    # PRIVATE: PROCESSING
-    # ============================================================
+    # ── Private methods ────────────────────────────────────────
     
-    def _embed_document(
-        self,
-        document_data: Dict[str, Any]
-    ) -> Dict[str, Any]:
-        """Embed a single document"""
+    def _embed_document(self, document_data: Dict[str, Any]) -> Dict[str, Any]:
         if not document_data.get('success'):
-            logger.warning(
-                f"⚠️  Skipping failed document: "
-                f"{document_data.get('filename')}"
-            )
+            logger.warning(f"⚠️  Skipping failed: {document_data.get('filename')}")
             return document_data
         
         filename = document_data.get('filename', 'unknown')
         logger.info(f"📄 Embedding: {filename}")
         
         try:
-            chunks_with_metadata = document_data.get(
-                'chunks_with_metadata', []
-            )
+            chunks_with_metadata = document_data.get('chunks_with_metadata', [])
             
             if not chunks_with_metadata:
                 plain_chunks = document_data.get('chunks', [])
@@ -568,14 +488,10 @@ class LangChainEmbeddingManager:
                 logger.warning(f"⚠️  No valid texts in {filename}")
                 return document_data
             
-            # Embed all texts
             embeddings = self.embeddings.embed_documents(texts)
             
-            # Merge embeddings with metadata
             embedded_chunks = []
-            for chunk_dict, embedding in zip(
-                chunks_with_metadata, embeddings
-            ):
+            for chunk_dict, embedding in zip(chunks_with_metadata, embeddings):
                 chunk_text = chunk_dict.get('text', '')
                 chunk_id = self._generate_chunk_id(chunk_text)
                 
@@ -604,7 +520,7 @@ class LangChainEmbeddingManager:
                 self._save_document_embeddings(result)
             
             logger.info(
-                f"✅ {filename}: {len(embedded_chunks)} chunks embedded "
+                f"✅ {filename}: {len(embedded_chunks)} chunks "
                 f"({self.embedding_dim}D)"
             )
             return result
@@ -623,7 +539,6 @@ class LangChainEmbeddingManager:
         results: Dict[str, Any],
         show_progress: bool
     ) -> Dict[str, Any]:
-        """Sequential document processing"""
         for i, doc in enumerate(documents, 1):
             if show_progress:
                 logger.info(
@@ -654,10 +569,7 @@ class LangChainEmbeddingManager:
         documents: List[Dict[str, Any]],
         results: Dict[str, Any]
     ) -> Dict[str, Any]:
-        """Parallel document processing"""
-        with ThreadPoolExecutor(
-            max_workers=self.max_workers
-        ) as executor:
+        with ThreadPoolExecutor(max_workers=self.max_workers) as executor:
             future_to_doc = {
                 executor.submit(self._embed_document, doc): doc
                 for doc in documents
@@ -687,19 +599,13 @@ class LangChainEmbeddingManager:
         
         return results
     
-    # ============================================================
-    # PRIVATE: UTILITIES
-    # ============================================================
-    
     def _generate_chunk_id(self, text: str) -> str:
-        """Generate MD5 chunk ID"""
         return hashlib.md5(text.encode('utf-8')).hexdigest()
     
     def _get_embedding_stats(
         self,
         embedded_chunks: List[Dict[str, Any]]
     ) -> Dict[str, Any]:
-        """Get embedding statistics"""
         if not embedded_chunks:
             return {}
         
@@ -729,25 +635,15 @@ class LangChainEmbeddingManager:
             },
             'embedding_stats': {
                 'mean_norm': float(
-                    np.mean([
-                        np.linalg.norm(e)
-                        for e in embedding_arrays
-                    ])
+                    np.mean([np.linalg.norm(e) for e in embedding_arrays])
                 ) if embedding_arrays else 0,
                 'std_norm': float(
-                    np.std([
-                        np.linalg.norm(e)
-                        for e in embedding_arrays
-                    ])
+                    np.std([np.linalg.norm(e) for e in embedding_arrays])
                 ) if embedding_arrays else 0
             }
         }
     
-    def _save_document_embeddings(
-        self,
-        document_data: Dict[str, Any]
-    ):
-        """Save intermediate results (metadata only, no vectors)"""
+    def _save_document_embeddings(self, document_data: Dict[str, Any]):
         try:
             filename = document_data.get('filename', 'unknown')
             safe_filename = "".join(
@@ -755,15 +651,11 @@ class LangChainEmbeddingManager:
                 if c.isalnum() or c in (' ', '-', '_')
             ).rstrip()
             
-            output_file = (
-                self.output_dir / f"{safe_filename}_embeddings.json"
-            )
+            output_file = self.output_dir / f"{safe_filename}_embeddings.json"
             
             save_data = {
                 'filename': filename,
-                'chunk_count': len(
-                    document_data.get('embedded_chunks', [])
-                ),
+                'chunk_count': len(document_data.get('embedded_chunks', [])),
                 'embedding_stats': document_data.get('embedding_stats'),
                 'embedded_at': document_data.get('embedding_timestamp'),
                 'model': self.model_name,
@@ -772,11 +664,7 @@ class LangChainEmbeddingManager:
             }
             
             with open(output_file, 'w', encoding='utf-8') as f:
-                json.dump(
-                    save_data, f,
-                    indent=2,
-                    ensure_ascii=False
-                )
+                json.dump(save_data, f, indent=2, ensure_ascii=False)
             
             logger.debug(f"💾 Saved metadata: {output_file.name}")
             
