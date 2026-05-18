@@ -9,13 +9,23 @@ python-dotenv==1.0.0
 pydantic-settings==2.1.0
 
 # ============================================================
-# LangChain Core
+# LangChain Core — upgraded to 0.2.x family
 # ============================================================
-langchain==0.1.20
-langchain-community==0.0.38
-langchain-core==0.1.52
-langchain-openai==0.0.5
-langchain-weaviate==0.0.1
+langchain==0.2.16
+langchain-core==0.2.43
+langchain-community==0.2.16
+langchain-openai==0.1.25
+langchain-weaviate==0.0.3
+
+# ============================================================
+# LangGraph — compatible with langchain-core 0.2.x
+# ============================================================
+langgraph==0.1.19
+
+# ============================================================
+# LangSmith - Observability & Monitoring
+# ============================================================
+langsmith==0.1.147
 
 # ============================================================
 # Document Processing (PDF / DOC / Tables)
@@ -29,7 +39,6 @@ csvkit==1.1.1
 # ✔ TABLE SUPPORT
 pandas==2.2.2
 tabulate==0.9.0
-
 
 # ============================================================
 # OCR
@@ -86,3 +95,5 @@ psutil>=5.9.0
 # ============================================================
 rank-bm25==0.2.2
 nltk==3.8.1
+
+# pip install torch==2.5.1+cu121 torchvision==0.20.1+cu121 --index-url https://download.pytorch.org/whl/cu121 

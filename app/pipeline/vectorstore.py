@@ -15,13 +15,12 @@ from weaviate.classes.data import DataObject
 from weaviate.classes.query import MetadataQuery, Filter
 from langchain_weaviate import WeaviateVectorStore
 
-logger = logging.getLogger(__name__)
+logger = logging.getLogger(__name__)  # FIX: was `name` (missing double underscores)
 
 
 class LangChainVectorStore:
     """
     Unified Weaviate vector store using LangChain.
-
     Handles:
         - Connection management with reconnect
         - Document storage via native Weaviate client
@@ -117,7 +116,7 @@ class LangChainVectorStore:
     def _reconnect_if_needed(self) -> bool:
         """
         Lightweight guard: only makes an HTTP call when our cached
-        state says we're disconnected.  Attempts one reconnect.
+        state says we're disconnected. Attempts one reconnect.
         """
         if self._connected and self.weaviate_client is not None:
             # Optimistic: trust cached state, avoid HTTP call
@@ -275,7 +274,9 @@ class LangChainVectorStore:
             )
             logger.info("✅ LangChain VectorStore initialised (search only)")
         except Exception as e:
-            logger.warning(f"⚠️  LangChain wrapper failed: {e} — search may be limited")
+            logger.warning(
+                f"⚠️  LangChain wrapper failed: {e} — search may be limited"
+            )
             self.vectorstore = None
 
     # ================================================================
@@ -285,11 +286,9 @@ class LangChainVectorStore:
     def store_batch(self, documents: List[Dict[str, Any]]) -> Dict[str, Any]:
         """
         Store multiple documents in Weaviate.
-
-        FIX: Guard uses _reconnect_if_needed() + native client only.
-             No longer requires self.vectorstore to be present.
+        Guard uses _reconnect_if_needed() + native client only.
+        Does not require self.vectorstore to be present.
         """
-        # ── Guard: only requires native client, NOT langchain wrapper ──
         if not self._reconnect_if_needed():
             return {
                 "documents_processed": 0,
@@ -309,7 +308,9 @@ class LangChainVectorStore:
 
         for doc in documents:
             if not doc.get("embedding_complete"):
-                logger.warning(f"⚠️  Skipping {doc.get('filename')}: not embedded")
+                logger.warning(
+                    f"⚠️  Skipping {doc.get('filename')}: not embedded"
+                )
                 continue
 
             result = self._store_document(doc)
@@ -339,7 +340,7 @@ class LangChainVectorStore:
         e.g. '2024-01-15T10:30:00.000Z'
         """
         if value and "T" in value:
-            base = value.split(".")[0]           # strip sub-seconds
+            base = value.split(".")[0]  # strip sub-seconds
             return f"{base}.000Z"
         return fallback
 
@@ -365,32 +366,34 @@ class LangChainVectorStore:
         for i, chunk in enumerate(embedded_chunks):
             embedding = chunk.get("embedding", [])
             if not embedding:
-                logger.warning(f"⚠️  Empty embedding for chunk {i} in {filename}, skipping")
+                logger.warning(
+                    f"⚠️  Empty embedding for chunk {i} in {filename}, skipping"
+                )
                 skipped += 1
                 continue
 
-            # ── Safe type coercions ────────────────────────────────────
+            # Safe type coercions
             similarity_score = chunk.get("similarity_score")
-            sentence_count   = chunk.get("sentence_count")
-            text_length      = chunk.get("text_length")
-            text             = chunk.get("text", "")
+            sentence_count = chunk.get("sentence_count")
+            text_length = chunk.get("text_length")
+            text = chunk.get("text", "")
 
             properties = {
-                "chunk_id":        chunk.get("chunk_id", ""),
-                "text":            text,
-                "filename":        filename,
-                "file_type":       file_type,
-                "chunk_index":     i,
-                "total_chunks":    total,
-                "embedding_model": chunk.get("embedding_model", ""),
-                "model_type":      chunk.get("model_type", ""),
-                "text_length":     int(text_length) if text_length is not None else len(text),
-                "embedded_at":     self._normalise_timestamp(
-                                       chunk.get("embedded_at"), now_str
-                                   ),
-                "indexed_at":      now_str,
+                "chunk_id":         chunk.get("chunk_id", ""),
+                "text":             text,
+                "filename":         filename,
+                "file_type":        file_type,
+                "chunk_index":      i,
+                "total_chunks":     total,
+                "embedding_model":  chunk.get("embedding_model", ""),
+                "model_type":       chunk.get("model_type", ""),
+                "text_length":      int(text_length) if text_length is not None else len(text),
+                "embedded_at":      self._normalise_timestamp(
+                                        chunk.get("embedded_at"), now_str
+                                    ),
+                "indexed_at":       now_str,
                 "similarity_score": float(similarity_score) if similarity_score is not None else 0.0,
-                "sentence_count":   int(sentence_count)     if sentence_count   is not None else 0,
+                "sentence_count":   int(sentence_count) if sentence_count is not None else 0,
             }
 
             batch_objects.append(DataObject(properties=properties, vector=embedding))
@@ -402,11 +405,11 @@ class LangChainVectorStore:
         Store a single document's chunks via native Weaviate batch.
 
         Weaviate v4 _BatchCollection does NOT expose failed_objects on the
-        context-manager object.  Errors are instead returned per add_object()
+        context-manager object. Errors are instead returned per add_object()
         call as WeaviateObject responses, or raised as exceptions.
         We track failures by catching per-object errors explicitly.
         """
-        filename       = document_data.get("filename", "unknown")
+        filename = document_data.get("filename", "unknown")
         embedded_chunks = document_data.get("embedded_chunks", [])
 
         if not embedded_chunks:
@@ -421,14 +424,11 @@ class LangChainVectorStore:
             return {"success": 0, "failed": skipped}
 
         success_count = 0
-        failed_count  = skipped
+        failed_count = skipped
 
         try:
             collection = self.weaviate_client.collections.get(self.class_name)
 
-            # ── Weaviate v4 batch: errors surface as exceptions per object ──
-            # _BatchCollection has no .failed_objects attribute.
-            # Use per-object try/except inside the context manager instead.
             with collection.batch.dynamic() as batch:
                 for i, obj in enumerate(batch_objects):
                     try:
@@ -462,8 +462,9 @@ class LangChainVectorStore:
         except Exception as e:
             logger.error(f"❌ Storage error for {filename}: {e}", exc_info=True)
             return {"success": 0, "failed": len(embedded_chunks)}
+
     # ================================================================
-    # SEARCH  (shared helpers)
+    # SEARCH (shared helpers)
     # ================================================================
 
     _RETURN_PROPERTIES = [
@@ -522,17 +523,16 @@ class LangChainVectorStore:
     def semantic_search(
         self,
         query_text: str,
-        embedder=None,          # kept for interface compat, self.embeddings used
+        embedder=None,       # kept for interface compatibility; self.embeddings used
         top_k: int = 5,
         min_score: float = 0.5,
         filters: Optional[Dict] = None,
     ) -> List[Dict[str, Any]]:
         """
         Vector similarity search.
-
-        FIX: `embedder` param is now documented as unused;
-             self.embeddings is always used for consistency.
-             Guard uses _reconnect_if_needed().
+        `embedder` param is documented as unused;
+        self.embeddings is always used for consistency.
+        Guard uses _reconnect_if_needed().
         """
         if not self._reconnect_if_needed():
             logger.error("❌ Not connected to Weaviate")
@@ -542,7 +542,7 @@ class LangChainVectorStore:
             logger.info(f"🔍 Semantic search: '{query_text[:60]}'")
 
             query_vector = self._embed_query(query_text)
-            collection   = self.weaviate_client.collections.get(self.class_name)
+            collection = self.weaviate_client.collections.get(self.class_name)
 
             response = collection.query.near_vector(
                 near_vector=query_vector,
@@ -560,9 +560,9 @@ class LangChainVectorStore:
             for obj in response.objects:
                 try:
                     props = getattr(obj, "properties", {}) or {}
-                    meta  = getattr(obj, "metadata", None)
+                    meta = getattr(obj, "metadata", None)
 
-                    distance  = getattr(meta, "distance",  None) if meta else None
+                    distance = getattr(meta, "distance", None) if meta else None
                     certainty = getattr(meta, "certainty", None) if meta else None
 
                     if certainty is not None:
@@ -581,7 +581,9 @@ class LangChainVectorStore:
                     logger.warning(f"⚠️  Error parsing result object: {obj_err}")
 
             results.sort(key=lambda x: x["similarity"], reverse=True)
-            logger.info(f"✅ Semantic: {len(results)} results (min_score={min_score})")
+            logger.info(
+                f"✅ Semantic: {len(results)} results (min_score={min_score})"
+            )
             return results
 
         except Exception as e:
@@ -595,7 +597,7 @@ class LangChainVectorStore:
     def hybrid_search(
         self,
         query_text: str,
-        embedder=None,          # kept for interface compat
+        embedder=None,       # kept for interface compatibility
         top_k: int = 5,
         min_score: float = 0.5,
         alpha: float = 0.7,
@@ -603,8 +605,7 @@ class LangChainVectorStore:
     ) -> List[Dict[str, Any]]:
         """
         Hybrid (vector + BM25) search with semantic fallback.
-
-        FIX: Guard uses _reconnect_if_needed().
+        Guard uses _reconnect_if_needed().
         """
         if not self._reconnect_if_needed():
             logger.error("❌ Not connected to Weaviate")
@@ -614,7 +615,7 @@ class LangChainVectorStore:
             logger.info(f"🔍 Hybrid search (α={alpha}): '{query_text[:60]}'")
 
             query_vector = self._embed_query(query_text)
-            collection   = self.weaviate_client.collections.get(self.class_name)
+            collection = self.weaviate_client.collections.get(self.class_name)
 
             response = collection.query.hybrid(
                 query=query_text,
@@ -636,7 +637,7 @@ class LangChainVectorStore:
             for obj in response.objects:
                 try:
                     props = getattr(obj, "properties", {}) or {}
-                    meta  = getattr(obj, "metadata", None)
+                    meta = getattr(obj, "metadata", None)
                     score = float(getattr(meta, "score", 0.0) or 0.0)
 
                     # Hybrid scores are not bounded [0,1]; skip min_score filter
@@ -650,7 +651,10 @@ class LangChainVectorStore:
             return results
 
         except Exception as e:
-            logger.error(f"❌ Hybrid search error: {e} — falling back to semantic", exc_info=True)
+            logger.error(
+                f"❌ Hybrid search error: {e} — falling back to semantic",
+                exc_info=True,
+            )
             return self.semantic_search(query_text, top_k=top_k, min_score=min_score)
 
     # ================================================================
@@ -666,7 +670,7 @@ class LangChainVectorStore:
 
         try:
             collection = self.weaviate_client.collections.get(self.class_name)
-            response   = collection.query.fetch_objects(
+            response = collection.query.fetch_objects(
                 limit=limit,
                 filters=Filter.by_property("filename").equal(filename),
             )
@@ -700,12 +704,12 @@ class LangChainVectorStore:
 
         try:
             collection = self.weaviate_client.collections.get(self.class_name)
-            response   = collection.query.fetch_objects(limit=count)
+            response = collection.query.fetch_objects(limit=count)
 
             results = []
             for obj in getattr(response, "objects", []):
                 props = getattr(obj, "properties", {}) or {}
-                text  = props.get("text", "")
+                text = props.get("text", "")
                 results.append({
                     "chunk_id": props.get("chunk_id"),
                     "text":     text,
@@ -733,10 +737,10 @@ class LangChainVectorStore:
                 return {"document_count": 0}
 
             collection = self.weaviate_client.collections.get(self.class_name)
-            count      = collection.aggregate.over_all(total_count=True)
+            count = collection.aggregate.over_all(total_count=True)
 
             return {
-                "document_count": count.total_count,
+                "document_count":  count.total_count,
                 "collection_name": self.class_name,
             }
 

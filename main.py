@@ -9,6 +9,7 @@ import warnings
 import multiprocessing
 import types
 import importlib.util
+
 # ============================================================================
 def _create_flash_attn_mock(name):
     mock = types.ModuleType(name)
@@ -60,7 +61,9 @@ from fastapi.staticfiles import StaticFiles
 from app.core.config import settings
 from app.core.logging_config import setup_logging
 from app.core.startup import startup_event, shutdown_event
-
+from app.core.metrics import init_metrics
+from app.core.metrics_middleware import PrometheusMiddleware
+from app.api.routes import metrics_route
 # Import routers
 from app.api.routes import pages, upload, chat, stats, weaviate, retrieve, rag
 
@@ -77,6 +80,15 @@ app = FastAPI(
     description=settings.APP_DESCRIPTION,
     version=settings.APP_VERSION
 )
+
+# ── Prometheus middleware ──────────────────────────────────
+app.add_middleware(PrometheusMiddleware, app_name="rag")
+
+# ── Initialize metrics ─────────────────────────────────────
+init_metrics()
+
+# ── Add metrics router ─────────────────────────────────────
+app.include_router(metrics_route.router, tags=["Metrics"])
 
 # Mount static files
 try:

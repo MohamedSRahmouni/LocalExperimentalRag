@@ -13,6 +13,7 @@ from datetime import datetime
 
 from fastapi import APIRouter, File, UploadFile
 from fastapi.responses import JSONResponse
+from app.api.dependencies import update_weaviate_metrics
 
 from app.core.config import settings
 from app.api.dependencies import (
@@ -170,7 +171,8 @@ async def upload_files(files: List[UploadFile] = File(...)):
                     logger.info(f"📦 Storing {len(embedded_docs)} documents in Weaviate")
                     
                     vector_stats = vector_store.store_batch(embedded_docs)
-                    
+                    update_weaviate_metrics()
+
                     logger.info(f"✅ Storage complete - Stored: {vector_stats['chunks_stored']} chunks")
                 else:
                     logger.warning("❌ No embedded documents to store in Weaviate")

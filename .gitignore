@@ -3,6 +3,9 @@ venv/
 env/
 ENV/
 
+/models/bge-m3
+/processed/
+/embeddings_output/
 .venv/
 # Python
 __pycache__/
@@ -21,4 +24,5 @@ __pycache__/
 
 # OS
 .DS_Store
-Thumbs.db
+Thumbs.db 
+ 
