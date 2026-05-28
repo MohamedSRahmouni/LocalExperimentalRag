@@ -41,25 +41,34 @@ async def health_check():
     from app.api.dependencies import (
         get_doc_processor,
         get_embedding_manager,
-        get_weaviate_client
+        get_vector_store        # ← CHANGED: was get_weaviate_client
     )
     from app.core.config import settings
     
     doc_processor = get_doc_processor()
     embedding_manager = get_embedding_manager()
-    weaviate_client = get_weaviate_client()
+    vector_store = get_vector_store()           # ← CHANGED
     
     health_status = {
         "status": "healthy",
         "processor_status": "ready" if doc_processor else "unavailable",
-        "embedding_manager_status": "ready" if embedding_manager and embedding_manager.is_ready() else "unavailable",
-        "weaviate_status": "connected" if weaviate_client and weaviate_client.is_connected() else "disconnected",
+        "embedding_manager_status": (
+            "ready" if embedding_manager and embedding_manager.is_ready() 
+            else "unavailable"
+        ),
+        "qdrant_status": (                      # ← CHANGED: was weaviate_status
+            "connected" if vector_store and vector_store.is_connected() 
+            else "disconnected"
+        ),
         "embedding_model": settings.EMBEDDING_MODEL,
-        "model_type": "sentence-transformer",
-        "device": "cpu"
+        "model_type": "multilingual-e5-small",  # ← UPDATED
+        "device": "gpu" if settings.USE_GPU else "cpu"  # ← UPDATED
     }
     
     if doc_processor and hasattr(doc_processor, 'semantic_chunker'):
-        health_status["embedder_status"] = "ready" if doc_processor.semantic_chunker.is_model_available() else "unavailable"
+        health_status["embedder_status"] = (
+            "ready" if doc_processor.semantic_chunker.is_model_available() 
+            else "unavailable"
+        )
     
     return health_status

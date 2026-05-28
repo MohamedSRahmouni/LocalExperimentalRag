@@ -51,6 +51,18 @@ def download_embedder():
             "description": "Qwen2-1.5B - Alternative option",
             "ram": "~6GB (float32), ~3GB (bfloat16)",
             "features": "High dimension, instruction-following"
+        },
+        "5": {
+            "name": "intfloat/multilingual-e5-small",
+            "local_dir": "./models/multilingual-e5-small",
+            "size": "~470MB",
+            "dim": 384,
+            "description": "multilingual-e5-small ✅ LIGHTWEIGHT",
+            "ram": "~500MB (float32)",
+            "features": (
+                "Multilingual, very fast, "
+                "query/passage prefixes required"
+            )
         }
     }
     

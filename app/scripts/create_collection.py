@@ -1,5 +1,5 @@
 """
-Script to create/recreate Weaviate collection with new dimensions
+Script to create/recreate Qdrant collection
 Run from project root: python app/scripts/create_collection.py
 """
 
@@ -21,14 +21,14 @@ print()
 # ============================================================
 # IMPORTS
 # ============================================================
-from app.pipeline.vectorstore import LangChainVectorStore
+from app.pipeline.vectorstore import LangChainQdrantStore
 from app.pipeline.embeddings import LangChainEmbeddingManager
 from dotenv import load_dotenv
 
 load_dotenv(project_root / '.env')
 
 print("=" * 70)
-print("🔄 WEAVIATE COLLECTION MANAGER")
+print("🔄 QDRANT COLLECTION MANAGER")
 print("=" * 70)
 
 
@@ -37,100 +37,36 @@ print("=" * 70)
 # ============================================================
 
 def resolve_model_path(model_path: str) -> str:
-    """
-    Convert relative model path to absolute project-based path
-    """
     p = Path(model_path)
-
-    # already absolute
     if p.is_absolute():
         return str(p)
 
-    # try project root / models / xxx
     candidate = project_root / "models" / p.name
     if candidate.exists():
         return str(candidate)
 
-    # fallback: original relative to project root
     return str(project_root / model_path)
 
 
 def get_env_config() -> dict:
-    """Load configuration from .env"""
-
     raw_model_path = os.getenv(
         'EMBEDDING_MODEL',
-        './models/bge-m3'   # FIXED default
+        './models/multilingual-e5-small'
     )
 
     config = {
         'embedding_model': resolve_model_path(raw_model_path),
-        'batch_size': int(os.getenv('EMBEDDING_BATCH_SIZE', 8)),
-        'weaviate_url': os.getenv('WEAVIATE_URL'),
-        'weaviate_api_key': os.getenv('WEAVIATE_API_KEY'),
-        'class_name': os.getenv('WEAVIATE_CLASS_NAME', 'ragdocument'),
-        'vector_dims': int(os.getenv('WEAVIATE_VECTOR_DIMS', 1024)),  # safer default for bge-m3
+        'batch_size': int(os.getenv('EMBEDDING_BATCH_SIZE', 32)),
+        'use_gpu': os.getenv('USE_GPU', 'false').lower() == 'true',
+        'qdrant_url': os.getenv('QDRANT_URL', 'http://localhost:6333'),
+        'qdrant_api_key': os.getenv('QDRANT_API_KEY') or None,
+        'collection_name': os.getenv('QDRANT_COLLECTION_NAME', 'rag_documents'),
+        'vector_size': int(os.getenv('QDRANT_VECTOR_SIZE', 384)),
+        'distance': os.getenv('QDRANT_DISTANCE', 'Cosine'),
     }
-
-    if not config['weaviate_url']:
-        print("❌ WEAVIATE_URL not found in .env")
-        sys.exit(1)
-
-    if not config['weaviate_api_key']:
-        print("❌ WEAVIATE_API_KEY not found in .env")
-        sys.exit(1)
 
     print(f"🧠 Resolved embedding model path: {config['embedding_model']}")
-
     return config
-
-
-# ============================================================
-# SCHEMA
-# ============================================================
-
-NEW_PROPERTIES = [
-    ("chunk_id", "TEXT", "Unique chunk identifier"),
-    ("text", "TEXT", "Chunk text content"),
-    ("text_length", "INT", "Text length in characters"),
-    ("embedding_model", "TEXT", "Embedding model name"),
-    ("model_type", "TEXT", "Model type"),
-    ("embedded_at", "DATE", "Embedding timestamp"),
-    ("indexed_at", "DATE", "Indexing timestamp"),
-    ("filename", "TEXT", "Source filename"),
-    ("file_type", "TEXT", "File extension"),
-    ("chunk_index", "INT", "Chunk position in document"),
-    ("total_chunks", "INT", "Total chunks in document"),
-    ("similarity_score", "NUMBER", "Similarity score"),
-    ("sentence_count", "INT", "Sentence count"),
-
-    # TABLE SUPPORT
-    ("type", "TEXT", "Chunk type: text | table"),
-    ("is_table", "BOOL", "True when chunk is a table"),
-    ("table_index", "INT", "Table index"),
-    ("page_no", "INT", "Page number"),
-    ("caption", "TEXT", "Table caption"),
-    ("row_count", "INT", "Rows"),
-    ("col_count", "INT", "Columns"),
-]
-
-
-def print_schema_preview():
-    print("\n📋 NEW SCHEMA PROPERTIES:")
-    print("   " + "-" * 50)
-
-    new_fields = {
-        "type", "is_table", "table_index",
-        "page_no", "caption", "row_count", "col_count",
-    }
-
-    for name, dtype, desc in NEW_PROPERTIES:
-        tag = " ← NEW 🆕" if name in new_fields else ""
-        print(f"   {name:<20} {dtype:<8} {desc}{tag}")
-
-    print("   " + "-" * 50)
-    print(f"   Total properties: {len(NEW_PROPERTIES)}")
-    print(f"   New table fields: {len(new_fields)}")
 
 
 # ============================================================
@@ -138,57 +74,45 @@ def print_schema_preview():
 # ============================================================
 
 def op_status(vectorstore, config):
-    exists = vectorstore.weaviate_client.collections.exists(config['class_name'])
-
+    stats = vectorstore.get_stats()
     print("\n📊 Collection Status:")
-    print(f"   Name   : {config['class_name']}")
-    print(f"   Exists : {exists}")
-
-    if exists:
-        stats = vectorstore.get_stats()
-        print(f"   Chunks : {stats.get('document_count', 0)}")
-        print(f"   Dims   : {config['vector_dims']}")
+    print(f"   Name     : {config['collection_name']}")
+    print(f"   Points   : {stats.get('document_count', 0)}")
+    print(f"   Vec size : {stats.get('vector_size', config['vector_size'])}")
+    print(f"   Distance : {stats.get('distance', config['distance'])}")
 
 
 def op_create(vectorstore, config):
-    if vectorstore.weaviate_client.collections.exists(config['class_name']):
-        print("⚠️ Already exists. Use recreate.")
-        return
-
-    print(f"📦 Creating {config['class_name']}...")
-    vectorstore._ensure_collection()
-    print("✅ Created")
+    print(f"\n📦 Creating {config['collection_name']}...")
+    if vectorstore._ensure_collection():
+        print("✅ Created")
+    else:
+        print("❌ Creation failed")
 
 
 def op_recreate(vectorstore, config):
-    print_schema_preview()
-
-    print("\n⚠️ This will DELETE ALL DATA")
+    print("\n⚠️  This will DELETE ALL DATA")
     confirm = input("Type 'yes': ").strip().lower()
     if confirm != "yes":
         print("❌ Cancelled")
         return
 
-    if vectorstore.weaviate_client.collections.exists(config['class_name']):
-        vectorstore.delete_collection()
-        print("🗑️ Deleted old collection")
-
-    vectorstore._ensure_collection()
-    print("✅ Recreated successfully")
+    if vectorstore.recreate_collection():
+        print("✅ Recreated successfully")
+    else:
+        print("❌ Recreate failed")
 
 
 def op_delete(vectorstore, config):
-    if not vectorstore.weaviate_client.collections.exists(config['class_name']):
-        print("ℹ️ Does not exist")
-        return
-
     confirm = input("Type 'yes': ").strip().lower()
     if confirm != "yes":
         print("❌ Cancelled")
         return
 
-    vectorstore.delete_collection()
-    print("🗑️ Deleted")
+    if vectorstore.delete_collection():
+        print("🗑️  Deleted")
+    else:
+        print("❌ Delete failed")
 
 
 # ============================================================
@@ -200,9 +124,12 @@ def main():
 
     print("\n📋 CONFIG:")
     print(f"   Model        : {config['embedding_model']}")
-    print(f"   Vector dims  : {config['vector_dims']}")
-    print(f"   Weaviate     : {config['weaviate_url']}")
-    print(f"   Class        : {config['class_name']}")
+    print(f"   Vector size  : {config['vector_size']}")
+    print(f"   Distance     : {config['distance']}")
+    print(f"   Batch size   : {config['batch_size']}")
+    print(f"   Use GPU      : {config['use_gpu']}")
+    print(f"   Qdrant       : {config['qdrant_url']}")
+    print(f"   Collection   : {config['collection_name']}")
 
     print("\n1 Create")
     print("2 Recreate (recommended)")
@@ -216,6 +143,7 @@ def main():
     embeddings = LangChainEmbeddingManager(
         model_name=config['embedding_model'],
         batch_size=config['batch_size'],
+        use_gpu=config['use_gpu'],
     )
 
     if not embeddings.is_ready():
@@ -224,22 +152,37 @@ def main():
 
     print(f"✅ Embedding dim: {embeddings.embedding_dim}")
 
-    print("\n🔄 Connect Weaviate...")
+    if embeddings.embedding_dim != config['vector_size']:
+        print("\n" + "="*70)
+        print("⚠️  DIMENSION MISMATCH DETECTED")
+        print("="*70)
+        print(f"   Model dimension    : {embeddings.embedding_dim}")
+        print(f"   .env VECTOR_SIZE   : {config['vector_size']}")
+        print("\n   Fix your .env file:")
+        print(f"   QDRANT_VECTOR_SIZE={embeddings.embedding_dim}")
+        print("="*70)
 
-    vectorstore = LangChainVectorStore(
-        url=config['weaviate_url'],
-        api_key=config['weaviate_api_key'],
-        class_name=config['class_name'],
+        cont = input("\nContinue anyway? [y/N]: ").strip().lower()
+        if cont != 'y':
+            print("❌ Cancelled")
+            return
+
+    print("\n🔄 Connect Qdrant...")
+
+    vectorstore = LangChainQdrantStore(
+        url=config['qdrant_url'],
+        api_key=config['qdrant_api_key'],
+        collection_name=config['collection_name'],
         embeddings=embeddings.embeddings,
-        vector_dims=config['vector_dims'],
+        vector_size=config['vector_size'],
+        distance=config['distance'],
     )
 
     if not vectorstore.is_connected():
-        print("❌ Weaviate connection failed")
+        print("❌ Qdrant connection failed")
         return
 
     print("✅ Connected")
-
     print("=" * 70)
 
     try:

@@ -3,7 +3,7 @@ venv/
 env/
 ENV/
 
-/models/bge-m3
+/models/multilingual-e5-small
 /processed/
 /embeddings_output/
 .venv/

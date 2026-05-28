@@ -13,14 +13,14 @@ from datetime import datetime
 
 from fastapi import APIRouter, File, UploadFile
 from fastapi.responses import JSONResponse
-from app.api.dependencies import update_weaviate_metrics
+from app.api.dependencies import update_vector_store_metrics  # ← CHANGED
 
 from app.core.config import settings
 from app.api.dependencies import (
     get_doc_processor,
     get_embedding_manager,
     get_vector_store,
-    get_weaviate_client
+    get_qdrant_client       # ← CHANGED: was get_weaviate_client
 )
 from app.utils.file_utils import allowed_file
 
@@ -31,13 +31,13 @@ logger = logging.getLogger(__name__)
 @router.post("")
 async def upload_files(files: List[UploadFile] = File(...)):
     """
-    Upload, process, embed, and store files in Weaviate
+    Upload, process, embed, and store files in Qdrant
     
     Pipeline:
     1. Save uploaded files
     2. Process documents (extract text, clean, chunk)
     3. Embed chunks
-    4. Store in Weaviate vector database
+    4. Store in Qdrant vector database
     5. Save local backup
     """
     
@@ -45,7 +45,7 @@ async def upload_files(files: List[UploadFile] = File(...)):
     doc_processor = get_doc_processor()
     embedding_manager = get_embedding_manager()
     vector_store = get_vector_store()
-    weaviate_client = get_weaviate_client()
+    qdrant_client = get_qdrant_client()         # ← CHANGED
     
     # Check if services are available
     if doc_processor is None or embedding_manager is None:
@@ -143,10 +143,10 @@ async def upload_files(files: List[UploadFile] = File(...)):
             logger.info(f"📦 Total chunks embedded: {embedding_results['total_chunks_embedded']}")
             
             # ================================================================
-            # STEP 3: Store in Weaviate Vector Database
+            # STEP 3: Store in Qdrant Vector Database ← CHANGED
             # ================================================================
             logger.info("="*80)
-            logger.info("STEP 3: Storing embeddings in Weaviate...")
+            logger.info("STEP 3: Storing embeddings in Qdrant...")  # ← CHANGED
             logger.info("="*80)
             
             vector_stats = {
@@ -155,9 +155,9 @@ async def upload_files(files: List[UploadFile] = File(...)):
                 "chunks_failed": 0
             }
             
-            if vector_store and weaviate_client and weaviate_client.is_connected():
+            if vector_store and vector_store.is_connected():        # ← CHANGED
                 logger.info(f"✓ Vector store available: True")
-                logger.info(f"✓ Weaviate connected: True")
+                logger.info(f"✓ Qdrant connected: True")          # ← CHANGED
                 
                 # Get embedded documents
                 embedded_docs = [
@@ -168,14 +168,14 @@ async def upload_files(files: List[UploadFile] = File(...)):
                 logger.info(f"📊 Documents with embedding_complete=True: {len(embedded_docs)}")
                 
                 if embedded_docs:
-                    logger.info(f"📦 Storing {len(embedded_docs)} documents in Weaviate")
+                    logger.info(f"📦 Storing {len(embedded_docs)} documents in Qdrant")  # ← CHANGED
                     
                     vector_stats = vector_store.store_batch(embedded_docs)
-                    update_weaviate_metrics()
+                    update_vector_store_metrics()           # ← CHANGED
 
                     logger.info(f"✅ Storage complete - Stored: {vector_stats['chunks_stored']} chunks")
                 else:
-                    logger.warning("❌ No embedded documents to store in Weaviate")
+                    logger.warning("❌ No embedded documents to store in Qdrant")  # ← CHANGED
             else:
                 logger.error("❌ Vector store not available!")
             
@@ -209,7 +209,7 @@ async def upload_files(files: List[UploadFile] = File(...)):
         logger.info(f"  📄 Documents processed: {processing_results['successful']}")
         logger.info(f"  🔢 Documents embedded: {embedding_results['successful']}")
         logger.info(f"  📦 Total chunks embedded: {embedding_results['total_chunks_embedded']}")
-        logger.info(f"  🗄️  Chunks stored in Weaviate: {vector_stats['chunks_stored']}")
+        logger.info(f"  🗄️  Chunks stored in Qdrant: {vector_stats['chunks_stored']}")  # ← CHANGED
         logger.info(f"  📄 Scanned docs: {processing_results.get('scanned_count', 0)}")
         logger.info(f"  ⏱️  Total time: {processing_results.get('processing_time', 0):.2f}s")
         logger.info("="*80)
@@ -232,8 +232,9 @@ async def upload_files(files: List[UploadFile] = File(...)):
                 "processing_time": f"{processing_results.get('processing_time', 0):.2f}s",
                 "embedding_time": f"{embedding_results.get('processing_time', 0):.2f}s",
                 "model": settings.EMBEDDING_MODEL,
-                "device": "cpu",
+                "device": "gpu" if settings.USE_GPU else "cpu",  # ← UPDATED
                 "chunking_method": settings.CHUNKING_METHOD,
+                "vector_db_type": "qdrant",             # ← NEW
                 "processing_statistics": processing_results.get('statistics', {}),
                 "embedding_statistics": embedding_results.get('statistics', {}),
                 "vector_statistics": vector_stats
@@ -275,14 +276,15 @@ def _save_local_backup(embedding_results, uploaded_files, vector_stats):
             "timestamp": embedding_results.get('processing_time'),
             "files": uploaded_files,
             "model": settings.EMBEDDING_MODEL,
-            "device": "cpu",
+            "device": "gpu" if settings.USE_GPU else "cpu",  # ← UPDATED
             "chunking_method": settings.CHUNKING_METHOD,
             "total_documents": len([
                 doc for doc in embedding_results['documents']
                 if doc.get('embedding_complete', False)
             ]),
             "total_chunks": embedding_results['total_chunks_embedded'],
-            "vector_db_stored": vector_stats['chunks_stored']
+            "vector_db_stored": vector_stats['chunks_stored'],
+            "vector_db_type": "qdrant"              # ← NEW
         },
         "documents": embedding_results['documents'],
         "statistics": embedding_results['statistics'],
@@ -304,10 +306,10 @@ def _save_local_backup(embedding_results, uploaded_files, vector_stats):
         f.write(f"Timestamp: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n")
         f.write(f"Files: {', '.join(uploaded_files)}\n")
         f.write(f"Model: {settings.EMBEDDING_MODEL}\n")
-        f.write(f"Device: CPU\n")
+        f.write(f"Device: {'GPU' if settings.USE_GPU else 'CPU'}\n")  # ← UPDATED
         f.write(f"Chunking Method: {settings.CHUNKING_METHOD}\n")
         f.write(f"Total Chunks: {embedding_results['total_chunks_embedded']}\n")
-        f.write(f"Stored in Weaviate: {vector_stats['chunks_stored']}\n")
+        f.write(f"Stored in Qdrant: {vector_stats['chunks_stored']}\n")  # ← CHANGED
         f.write(f"{'='*80}\n\n")
         
         for doc in embedding_results['documents']:

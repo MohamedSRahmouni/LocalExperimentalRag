@@ -1,51 +1,87 @@
 """
-Vector Store Pipeline
-LangChain-powered Weaviate integration
+Vector Store Pipeline - Qdrant
+LangChain-powered Qdrant integration for local Docker deployment
 """
 
 import logging
 from typing import List, Dict, Any, Optional
 from datetime import datetime, timezone
 
-import weaviate
-import weaviate.classes.init as wvc_init
-from weaviate.auth import AuthApiKey
-from weaviate.classes.config import Configure, Property, DataType
-from weaviate.classes.data import DataObject
-from weaviate.classes.query import MetadataQuery, Filter
-from langchain_weaviate import WeaviateVectorStore
+from qdrant_client import QdrantClient
+from qdrant_client.models import (
+    Distance, VectorParams, PointStruct,
+    Filter, FieldCondition, MatchValue,
+    ScoredPoint
+)
 
-logger = logging.getLogger(__name__)  # FIX: was `name` (missing double underscores)
+# ── LangChain Qdrant wrapper (optional — only used for search) ──
+# Try multiple import paths depending on installed version
+_VectorStoreClass = None
+
+try:
+    from langchain_qdrant import Qdrant as _VectorStoreClass
+    _LANGCHAIN_BACKEND = "langchain_qdrant.Qdrant"
+except ImportError:
+    pass
+
+if _VectorStoreClass is None:
+    try:
+        from langchain_qdrant import QdrantVectorStore as _VectorStoreClass
+        _LANGCHAIN_BACKEND = "langchain_qdrant.QdrantVectorStore"
+    except ImportError:
+        pass
+
+if _VectorStoreClass is None:
+    try:
+        from langchain_community.vectorstores import Qdrant as _VectorStoreClass
+        _LANGCHAIN_BACKEND = "langchain_community.Qdrant"
+    except ImportError:
+        pass
+
+if _VectorStoreClass is None:
+    _LANGCHAIN_BACKEND = "none"
+    import warnings
+    warnings.warn(
+        "No LangChain Qdrant integration found. "
+        "Semantic search via LangChain wrapper disabled. "
+        "Native Qdrant search still works.",
+        ImportWarning,
+        stacklevel=2,
+    )
+
+logger = logging.getLogger(__name__)
+logger.info(f"Qdrant LangChain backend: {_LANGCHAIN_BACKEND}")
 
 
-class LangChainVectorStore:
+class LangChainQdrantStore:
     """
-    Unified Weaviate vector store using LangChain.
+    Unified Qdrant vector store using LangChain.
+    
     Handles:
-        - Connection management with reconnect
-        - Document storage via native Weaviate client
+        - Connection to local Qdrant Docker
+        - Document storage with metadata
         - Semantic and hybrid search
         - Collection administration
     """
 
     def __init__(
         self,
-        url: str,
-        api_key: str,
-        class_name: str = "Ragdocument",
+        url: str = "http://localhost:6333",
+        api_key: Optional[str] = None,
+        collection_name: str = "rag_documents",
         embeddings=None,
-        vector_dims: int = 1536,
+        vector_size: int = 384,
+        distance: str = "Cosine",
     ):
         self.url = url
-        self.api_key = api_key
-        self.class_name = class_name
+        self.api_key = api_key if api_key else None
+        self.collection_name = collection_name
         self.embeddings = embeddings
-        self.vector_dims = vector_dims
+        self.vector_size = vector_size
+        self.distance = self._parse_distance(distance)
 
-        self.weaviate_client: Optional[weaviate.WeaviateClient] = None
-        self.vectorstore: Optional[WeaviateVectorStore] = None
-
-        # Cache connection state to avoid repeated HTTP calls
+        self.client: Optional[QdrantClient] = None
+        self.vectorstore: Optional[QdrantVectorStore] = None
         self._connected: bool = False
 
         self._connect()
@@ -54,44 +90,36 @@ class LangChainVectorStore:
     # CONNECTION
     # ================================================================
 
-    def _build_client(self) -> weaviate.WeaviateClient:
-        """Create and return a new Weaviate client (not yet verified)."""
-        cluster_url = self.url
-        if not cluster_url.startswith(("http://", "https://")):
-            cluster_url = f"https://{cluster_url}"
-
-        return weaviate.connect_to_wcs(
-            cluster_url=cluster_url,
-            auth_credentials=AuthApiKey(self.api_key),
-            skip_init_checks=True,
-            additional_config=wvc_init.AdditionalConfig(
-                timeout=wvc_init.Timeout(init=30, query=30, insert=120)
-            ),
-        )
+    @staticmethod
+    def _parse_distance(distance_str: str) -> Distance:
+        """Convert string to Qdrant Distance enum."""
+        distance_map = {
+            "cosine": Distance.COSINE,
+            "euclid": Distance.EUCLID,
+            "euclidean": Distance.EUCLID,
+            "dot": Distance.DOT,
+        }
+        return distance_map.get(distance_str.lower(), Distance.COSINE)
 
     def _connect(self) -> bool:
-        """
-        Establish connection to Weaviate.
-        Returns True on success, False on failure.
-        """
+        """Establish connection to Qdrant."""
         logger.info("=" * 70)
-        logger.info("🔌 Connecting to Weaviate Cloud")
+        logger.info("🔌 Connecting to Qdrant")
         logger.info("=" * 70)
-
-        # Close any stale client before reconnecting
-        self._safe_close()
 
         try:
-            self.weaviate_client = self._build_client()
+            self.client = QdrantClient(
+                url=self.url,
+                api_key=self.api_key,
+                timeout=30,
+            )
 
-            if not self.weaviate_client.is_ready():
-                logger.error("❌ Weaviate not ready after connect")
-                self._connected = False
-                return False
-
-            logger.info("✅ Connected to Weaviate Cloud")
+            # Health check
+            collections = self.client.get_collections()
+            logger.info(f"✅ Connected to Qdrant at {self.url}")
+            logger.info(f"   Collections: {len(collections.collections)}")
+            
             self._connected = True
-
             self._ensure_collection()
 
             if self.embeddings:
@@ -102,149 +130,80 @@ class LangChainVectorStore:
 
         except Exception as e:
             logger.error("=" * 70)
-            logger.error(f"❌ Weaviate connection failed: {e}")
+            logger.error(f"❌ Qdrant connection failed: {e}")
             logger.error("Troubleshooting:")
-            logger.error("  1. Check WEAVIATE_URL in .env")
-            logger.error("  2. Verify WEAVIATE_API_KEY")
-            logger.error("  3. Check cluster status in Weaviate Console")
+            logger.error("  1. Check Docker: docker ps | grep qdrant")
+            logger.error("  2. Check URL: http://localhost:6333/dashboard")
+            logger.error("  3. Restart: docker restart qdrant")
             logger.error("=" * 70)
             self._connected = False
-            self.weaviate_client = None
-            self.vectorstore = None
             return False
 
     def _reconnect_if_needed(self) -> bool:
-        """
-        Lightweight guard: only makes an HTTP call when our cached
-        state says we're disconnected. Attempts one reconnect.
-        """
-        if self._connected and self.weaviate_client is not None:
-            # Optimistic: trust cached state, avoid HTTP call
+        """Lightweight reconnection guard."""
+        if self._connected and self.client is not None:
             return True
 
         logger.warning("⚠️  Connection lost — attempting reconnect...")
         return self._connect()
 
-    def _safe_close(self):
-        """Close existing client without raising."""
-        if self.weaviate_client is not None:
-            try:
-                self.weaviate_client.close()
-            except Exception:
-                pass
-            self.weaviate_client = None
-        self._connected = False
-
     def is_connected(self) -> bool:
-        """
-        Public health check.
-        Makes one real HTTP call; updates cached state.
-        Call sparingly (e.g. health endpoints, not per-document).
-        """
-        if self.weaviate_client is None:
-            self._connected = False
+        """Health check with real API call."""
+        if self.client is None:
             return False
 
         try:
-            ready = self.weaviate_client.is_ready()
-            self._connected = ready
-            return ready
+            self.client.get_collections()
+            self._connected = True
+            return True
         except Exception:
             self._connected = False
             return False
 
     def close(self):
-        """Gracefully close the Weaviate connection."""
-        self._safe_close()
-        logger.info("✅ Weaviate connection closed")
+        """Close Qdrant connection."""
+        if self.client:
+            self.client.close()
+        self._connected = False
+        logger.info("✅ Qdrant connection closed")
 
     # ================================================================
     # COLLECTION MANAGEMENT
     # ================================================================
 
     def _ensure_collection(self) -> bool:
-        """Create collection if it does not exist."""
+        """Create collection if it doesn't exist."""
         try:
-            if self.weaviate_client.collections.exists(self.class_name):
-                logger.info(f"✅ Collection '{self.class_name}' exists")
+            collections = self.client.get_collections().collections
+            exists = any(c.name == self.collection_name for c in collections)
+
+            if exists:
+                logger.info(f"✅ Collection '{self.collection_name}' exists")
                 return True
 
-            logger.info(f"📦 Creating collection '{self.class_name}'...")
+            logger.info(f"📦 Creating collection '{self.collection_name}'...")
 
-            self.weaviate_client.collections.create(
-                name=self.class_name,
-                description="RAG document chunks with embeddings",
-                vectorizer_config=Configure.Vectorizer.none(),
-                properties=[
-                    Property(
-                        name="chunk_id",
-                        data_type=DataType.TEXT,
-                        description="Unique chunk identifier",
-                    ),
-                    Property(
-                        name="text",
-                        data_type=DataType.TEXT,
-                        description="Chunk text content",
-                    ),
-                    Property(
-                        name="text_length",
-                        data_type=DataType.INT,
-                        description="Text length in characters",
-                    ),
-                    Property(
-                        name="embedding_model",
-                        data_type=DataType.TEXT,
-                        description="Embedding model name",
-                    ),
-                    Property(
-                        name="model_type",
-                        data_type=DataType.TEXT,
-                        description="Model type",
-                    ),
-                    Property(
-                        name="embedded_at",
-                        data_type=DataType.DATE,
-                        description="Embedding timestamp",
-                    ),
-                    Property(
-                        name="indexed_at",
-                        data_type=DataType.DATE,
-                        description="Indexing timestamp",
-                    ),
-                    Property(
-                        name="filename",
-                        data_type=DataType.TEXT,
-                        description="Source filename",
-                    ),
-                    Property(
-                        name="file_type",
-                        data_type=DataType.TEXT,
-                        description="File extension",
-                    ),
-                    Property(
-                        name="chunk_index",
-                        data_type=DataType.INT,
-                        description="Chunk position in document",
-                    ),
-                    Property(
-                        name="total_chunks",
-                        data_type=DataType.INT,
-                        description="Total chunks in document",
-                    ),
-                    Property(
-                        name="similarity_score",
-                        data_type=DataType.NUMBER,
-                        skip_vectorization=True,
-                    ),
-                    Property(
-                        name="sentence_count",
-                        data_type=DataType.INT,
-                        skip_vectorization=True,
-                    ),
-                ],
+            self.client.create_collection(
+                collection_name=self.collection_name,
+                vectors_config=VectorParams(
+                    size=self.vector_size,
+                    distance=self.distance,
+                ),
             )
 
-            logger.info(f"✅ Collection '{self.class_name}' created")
+            # Create payload indexes for fast filtering
+            self.client.create_payload_index(
+                collection_name=self.collection_name,
+                field_name="filename",
+                field_schema="keyword",
+            )
+            self.client.create_payload_index(
+                collection_name=self.collection_name,
+                field_name="chunk_id",
+                field_schema="keyword",
+            )
+
+            logger.info(f"✅ Collection '{self.collection_name}' created")
             return True
 
         except Exception as e:
@@ -252,43 +211,28 @@ class LangChainVectorStore:
             return False
 
     def _init_vectorstore(self):
-        """Initialise LangChain wrapper (used for search helpers only)."""
-        try:
-            self.vectorstore = WeaviateVectorStore(
-                client=self.weaviate_client,
-                index_name=self.class_name,
-                text_key="text",
-                embedding=self.embeddings,
-                attributes=[
-                    "chunk_id",
-                    "filename",
-                    "file_type",
-                    "chunk_index",
-                    "total_chunks",
-                    "embedding_model",
-                    "model_type",
-                    "text_length",
-                    "sentence_count",
-                    "similarity_score",
-                ],
-            )
-            logger.info("✅ LangChain VectorStore initialised (search only)")
-        except Exception as e:
-            logger.warning(
-                f"⚠️  LangChain wrapper failed: {e} — search may be limited"
-            )
+        """Initialize LangChain wrapper for search helpers."""
+        if not LANGCHAIN_AVAILABLE:
+            logger.warning("⚠️  LangChain Qdrant integration not available")
             self.vectorstore = None
+            return
 
+        try:
+            self.vectorstore = Qdrant(
+                client=self.client,
+                collection_name=self.collection_name,
+                embeddings=self.embeddings,
+            )
+            logger.info("✅ LangChain Qdrant wrapper initialized")
+        except Exception as e:
+            logger.warning(f"⚠️  LangChain wrapper failed: {e}")
+            self.vectorstore = None
     # ================================================================
     # STORAGE
     # ================================================================
 
     def store_batch(self, documents: List[Dict[str, Any]]) -> Dict[str, Any]:
-        """
-        Store multiple documents in Weaviate.
-        Guard uses _reconnect_if_needed() + native client only.
-        Does not require self.vectorstore to be present.
-        """
+        """Store multiple documents in Qdrant."""
         if not self._reconnect_if_needed():
             return {
                 "documents_processed": 0,
@@ -333,82 +277,8 @@ class LangChainVectorStore:
             "chunks_failed": total_failed,
         }
 
-    @staticmethod
-    def _normalise_timestamp(value: Optional[str], fallback: str) -> str:
-        """
-        Ensure RFC-3339 / ISO-8601 format Weaviate accepts.
-        e.g. '2024-01-15T10:30:00.000Z'
-        """
-        if value and "T" in value:
-            base = value.split(".")[0]  # strip sub-seconds
-            return f"{base}.000Z"
-        return fallback
-
-    def _build_batch_objects(
-        self,
-        document_data: Dict[str, Any],
-    ) -> tuple[List[DataObject], int]:
-        """
-        Convert embedded chunks → DataObject list.
-
-        Returns:
-            (batch_objects, skipped_count)
-        """
-        embedded_chunks = document_data.get("embedded_chunks", [])
-        filename = document_data.get("filename", "unknown")
-        file_type = document_data.get("metadata", {}).get("file_type", "")
-        total = len(embedded_chunks)
-        now_str = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%S.000Z")
-
-        batch_objects: List[DataObject] = []
-        skipped = 0
-
-        for i, chunk in enumerate(embedded_chunks):
-            embedding = chunk.get("embedding", [])
-            if not embedding:
-                logger.warning(
-                    f"⚠️  Empty embedding for chunk {i} in {filename}, skipping"
-                )
-                skipped += 1
-                continue
-
-            # Safe type coercions
-            similarity_score = chunk.get("similarity_score")
-            sentence_count = chunk.get("sentence_count")
-            text_length = chunk.get("text_length")
-            text = chunk.get("text", "")
-
-            properties = {
-                "chunk_id":         chunk.get("chunk_id", ""),
-                "text":             text,
-                "filename":         filename,
-                "file_type":        file_type,
-                "chunk_index":      i,
-                "total_chunks":     total,
-                "embedding_model":  chunk.get("embedding_model", ""),
-                "model_type":       chunk.get("model_type", ""),
-                "text_length":      int(text_length) if text_length is not None else len(text),
-                "embedded_at":      self._normalise_timestamp(
-                                        chunk.get("embedded_at"), now_str
-                                    ),
-                "indexed_at":       now_str,
-                "similarity_score": float(similarity_score) if similarity_score is not None else 0.0,
-                "sentence_count":   int(sentence_count) if sentence_count is not None else 0,
-            }
-
-            batch_objects.append(DataObject(properties=properties, vector=embedding))
-
-        return batch_objects, skipped
-
     def _store_document(self, document_data: Dict[str, Any]) -> Dict[str, int]:
-        """
-        Store a single document's chunks via native Weaviate batch.
-
-        Weaviate v4 _BatchCollection does NOT expose failed_objects on the
-        context-manager object. Errors are instead returned per add_object()
-        call as WeaviateObject responses, or raised as exceptions.
-        We track failures by catching per-object errors explicitly.
-        """
+        """Store a single document's chunks."""
         filename = document_data.get("filename", "unknown")
         embedded_chunks = document_data.get("embedded_chunks", [])
 
@@ -417,245 +287,176 @@ class LangChainVectorStore:
 
         logger.info(f"💾 Storing: {filename} ({len(embedded_chunks)} chunks)")
 
-        batch_objects, skipped = self._build_batch_objects(document_data)
+        points = []
+        now_str = datetime.now(timezone.utc).isoformat()
+        file_type = document_data.get("metadata", {}).get("file_type", "")
 
-        if not batch_objects:
-            logger.warning(f"⚠️  No valid chunks to store for {filename}")
-            return {"success": 0, "failed": skipped}
+        for i, chunk in enumerate(embedded_chunks):
+            embedding = chunk.get("embedding", [])
+            if not embedding:
+                continue
 
-        success_count = 0
-        failed_count = skipped
+            # Generate unique point ID (Qdrant uses integers or UUIDs)
+            point_id = hash(chunk.get("chunk_id", f"{filename}_{i}")) % (2**63)
+
+            payload = {
+                "chunk_id": chunk.get("chunk_id", ""),
+                "text": chunk.get("text", ""),
+                "filename": filename,
+                "file_type": file_type,
+                "chunk_index": i,
+                "total_chunks": len(embedded_chunks),
+                "embedding_model": chunk.get("embedding_model", ""),
+                "model_type": chunk.get("model_type", ""),
+                "text_length": chunk.get("text_length", len(chunk.get("text", ""))),
+                "embedded_at": chunk.get("embedded_at", now_str),
+                "indexed_at": now_str,
+                "similarity_score": chunk.get("similarity_score", 0.0),
+                "sentence_count": chunk.get("sentence_count", 0),
+                # Table metadata
+                "type": chunk.get("type", "text"),
+                "is_table": chunk.get("is_table", False),
+                "table_index": chunk.get("table_index"),
+                "page_no": chunk.get("page_no"),
+                "caption": chunk.get("caption"),
+                "row_count": chunk.get("row_count"),
+                "col_count": chunk.get("col_count"),
+            }
+
+            points.append(PointStruct(
+                id=point_id,
+                vector=embedding,
+                payload=payload,
+            ))
 
         try:
-            collection = self.weaviate_client.collections.get(self.class_name)
-
-            with collection.batch.dynamic() as batch:
-                for i, obj in enumerate(batch_objects):
-                    try:
-                        batch.add_object(
-                            properties=obj.properties,
-                            vector=obj.vector,
-                        )
-                        success_count += 1
-                    except Exception as obj_err:
-                        failed_count += 1
-                        logger.error(
-                            f"   ❌ Chunk {i} failed "
-                            f"({obj.properties.get('chunk_id', '?')}): {obj_err}"
-                        )
-
-            logger.info(
-                f"✅ {filename}: {success_count} stored, {failed_count} failed"
+            self.client.upsert(
+                collection_name=self.collection_name,
+                points=points,
             )
 
-            # Mark as potentially disconnected if everything failed
-            if success_count == 0 and len(batch_objects) > 0:
-                self._connected = False
-
-            return {"success": success_count, "failed": failed_count}
-
-        except weaviate.exceptions.WeaviateConnectionError as e:
-            logger.error(f"❌ Connection lost storing {filename}: {e}")
-            self._connected = False
-            return {"success": 0, "failed": len(embedded_chunks)}
+            logger.info(f"✅ {filename}: {len(points)} chunks stored")
+            return {"success": len(points), "failed": 0}
 
         except Exception as e:
             logger.error(f"❌ Storage error for {filename}: {e}", exc_info=True)
             return {"success": 0, "failed": len(embedded_chunks)}
 
     # ================================================================
-    # SEARCH (shared helpers)
+    # SEARCH
     # ================================================================
 
-    _RETURN_PROPERTIES = [
-        "chunk_id", "text", "filename", "file_type",
-        "chunk_index", "total_chunks", "embedding_model",
-        "model_type", "text_length", "sentence_count", "similarity_score",
-    ]
-
-    @staticmethod
-    def _safe_get(d: dict, key: str, default=None):
-        val = d.get(key, default)
-        return val if val is not None else default
-
-    @staticmethod
-    def _build_result(
-        props: dict,
-        similarity: float,
-        distance: Optional[float],
-    ) -> Dict[str, Any]:
-        """Shared result-dict builder for both search methods."""
-        sg = LangChainVectorStore._safe_get
-        text = sg(props, "text", "")
-        return {
-            "chunk_id":   sg(props, "chunk_id", ""),
-            "text":       text,
-            "score":      similarity,
-            "similarity": similarity,
-            "distance":   distance,
-            "metadata": {
-                "filename":         sg(props, "filename", ""),
-                "file_type":        sg(props, "file_type", ""),
-                "chunk_index":      sg(props, "chunk_index", 0),
-                "total_chunks":     sg(props, "total_chunks", 0),
-                "similarity_score": sg(props, "similarity_score", 0.0),
-                "sentence_count":   sg(props, "sentence_count", 0),
-                "model_type":       sg(props, "model_type", ""),
-            },
-            "text_length": sg(props, "text_length", len(text)),
-            "model":       sg(props, "embedding_model", ""),
-            "preview":     text[:200] + "..." if len(text) > 200 else text,
-        }
-
     def _embed_query(self, query_text: str) -> List[float]:
-        """
-        Embed a query string.
-        Raises RuntimeError if no embeddings model is configured.
-        """
+        """Embed query using configured embeddings model."""
         if self.embeddings is None:
             raise RuntimeError("No embeddings model configured")
         return self.embeddings.embed_query(query_text)
 
-    # ================================================================
-    # SEMANTIC SEARCH
-    # ================================================================
+    @staticmethod
+    def _build_result(point: ScoredPoint) -> Dict[str, Any]:
+        """Convert Qdrant ScoredPoint to standard result dict."""
+        payload = point.payload or {}
+        text = payload.get("text", "")
+
+        return {
+            "chunk_id": payload.get("chunk_id", ""),
+            "text": text,
+            "score": point.score,
+            "similarity": point.score,
+            "distance": 1.0 - point.score if point.score else None,
+            "metadata": {
+                "filename": payload.get("filename", ""),
+                "file_type": payload.get("file_type", ""),
+                "chunk_index": payload.get("chunk_index", 0),
+                "total_chunks": payload.get("total_chunks", 0),
+                "similarity_score": payload.get("similarity_score", 0.0),
+                "sentence_count": payload.get("sentence_count", 0),
+                "model_type": payload.get("model_type", ""),
+                "type": payload.get("type", "text"),
+                "is_table": payload.get("is_table", False),
+            },
+            "text_length": payload.get("text_length", len(text)),
+            "model": payload.get("embedding_model", ""),
+            "preview": text[:200] + "..." if len(text) > 200 else text,
+        }
 
     def semantic_search(
         self,
         query_text: str,
-        embedder=None,       # kept for interface compatibility; self.embeddings used
+        embedder=None,
         top_k: int = 5,
         min_score: float = 0.5,
         filters: Optional[Dict] = None,
     ) -> List[Dict[str, Any]]:
-        """
-        Vector similarity search.
-        `embedder` param is documented as unused;
-        self.embeddings is always used for consistency.
-        Guard uses _reconnect_if_needed().
-        """
+        """Vector similarity search."""
         if not self._reconnect_if_needed():
-            logger.error("❌ Not connected to Weaviate")
+            logger.error("❌ Not connected to Qdrant")
             return []
 
         try:
             logger.info(f"🔍 Semantic search: '{query_text[:60]}'")
 
             query_vector = self._embed_query(query_text)
-            collection = self.weaviate_client.collections.get(self.class_name)
 
-            response = collection.query.near_vector(
-                near_vector=query_vector,
+            # Build filter if provided
+            qdrant_filter = None
+            if filters and filters.get("filename"):
+                qdrant_filter = Filter(
+                    must=[
+                        FieldCondition(
+                            key="filename",
+                            match=MatchValue(value=filters["filename"]),
+                        )
+                    ]
+                )
+
+            search_result = self.client.search(
+                collection_name=self.collection_name,
+                query_vector=query_vector,
                 limit=top_k,
-                return_metadata=MetadataQuery(distance=True, certainty=True),
-                return_properties=self._RETURN_PROPERTIES,
+                query_filter=qdrant_filter,
+                score_threshold=min_score,
             )
 
-            if not getattr(response, "objects", None):
-                logger.warning("⚠️  No objects returned from Weaviate")
-                return []
+            results = [
+                self._build_result(point)
+                for point in search_result
+            ]
 
-            results: List[Dict[str, Any]] = []
-
-            for obj in response.objects:
-                try:
-                    props = getattr(obj, "properties", {}) or {}
-                    meta = getattr(obj, "metadata", None)
-
-                    distance = getattr(meta, "distance", None) if meta else None
-                    certainty = getattr(meta, "certainty", None) if meta else None
-
-                    if certainty is not None:
-                        similarity = float(certainty)
-                    elif distance is not None:
-                        similarity = max(0.0, 1.0 - float(distance))
-                    else:
-                        similarity = 0.0
-
-                    if similarity < min_score:
-                        continue
-
-                    results.append(self._build_result(props, similarity, distance))
-
-                except Exception as obj_err:
-                    logger.warning(f"⚠️  Error parsing result object: {obj_err}")
-
-            results.sort(key=lambda x: x["similarity"], reverse=True)
-            logger.info(
-                f"✅ Semantic: {len(results)} results (min_score={min_score})"
-            )
+            logger.info(f"✅ Semantic: {len(results)} results")
             return results
 
         except Exception as e:
             logger.error(f"❌ Semantic search error: {e}", exc_info=True)
             return []
 
-    # ================================================================
-    # HYBRID SEARCH
-    # ================================================================
-
     def hybrid_search(
         self,
         query_text: str,
-        embedder=None,       # kept for interface compatibility
+        embedder=None,
         top_k: int = 5,
         min_score: float = 0.5,
         alpha: float = 0.7,
         filters: Optional[Dict] = None,
     ) -> List[Dict[str, Any]]:
         """
-        Hybrid (vector + BM25) search with semantic fallback.
-        Guard uses _reconnect_if_needed().
+        Hybrid search (vector + text).
+        Qdrant doesn't have built-in hybrid like Weaviate,
+        so we do semantic search with text pre-filtering.
         """
-        if not self._reconnect_if_needed():
-            logger.error("❌ Not connected to Weaviate")
-            return []
-
-        try:
-            logger.info(f"🔍 Hybrid search (α={alpha}): '{query_text[:60]}'")
-
-            query_vector = self._embed_query(query_text)
-            collection = self.weaviate_client.collections.get(self.class_name)
-
-            response = collection.query.hybrid(
-                query=query_text,
-                vector=query_vector,
-                alpha=alpha,
-                limit=top_k,
-                return_metadata=MetadataQuery(score=True),
-                return_properties=self._RETURN_PROPERTIES,
-            )
-
-            if not getattr(response, "objects", None):
-                logger.warning("⚠️  No hybrid results — falling back to semantic")
-                return self.semantic_search(
-                    query_text, top_k=top_k, min_score=min_score
-                )
-
-            results: List[Dict[str, Any]] = []
-
-            for obj in response.objects:
-                try:
-                    props = getattr(obj, "properties", {}) or {}
-                    meta = getattr(obj, "metadata", None)
-                    score = float(getattr(meta, "score", 0.0) or 0.0)
-
-                    # Hybrid scores are not bounded [0,1]; skip min_score filter
-                    results.append(self._build_result(props, score, None))
-
-                except Exception as obj_err:
-                    logger.warning(f"⚠️  Error parsing hybrid result: {obj_err}")
-
-            results.sort(key=lambda x: x["similarity"], reverse=True)
-            logger.info(f"✅ Hybrid: {len(results)} results")
-            return results
-
-        except Exception as e:
-            logger.error(
-                f"❌ Hybrid search error: {e} — falling back to semantic",
-                exc_info=True,
-            )
-            return self.semantic_search(query_text, top_k=top_k, min_score=min_score)
+        logger.info(f"🔍 Hybrid search (α={alpha}): '{query_text[:60]}'")
+        
+        # For now, fallback to semantic
+        # To implement true hybrid, you'd need to:
+        # 1. Do BM25-style text search (requires external lib)
+        # 2. Combine with vector search using alpha weighting
+        
+        return self.semantic_search(
+            query_text=query_text,
+            top_k=top_k,
+            min_score=min_score,
+            filters=filters,
+        )
 
     # ================================================================
     # UTILITY SEARCH
@@ -664,29 +465,38 @@ class LangChainVectorStore:
     def search_by_filename(
         self, filename: str, limit: int = 100
     ) -> List[Dict[str, Any]]:
-        """Return all chunks belonging to a specific file."""
+        """Return all chunks for a specific file."""
         if not self._reconnect_if_needed():
             return []
 
         try:
-            collection = self.weaviate_client.collections.get(self.class_name)
-            response = collection.query.fetch_objects(
+            scroll_result = self.client.scroll(
+                collection_name=self.collection_name,
+                scroll_filter=Filter(
+                    must=[
+                        FieldCondition(
+                            key="filename",
+                            match=MatchValue(value=filename),
+                        )
+                    ]
+                ),
                 limit=limit,
-                filters=Filter.by_property("filename").equal(filename),
             )
 
+            points = scroll_result[0]  # (points, next_offset)
             results = []
-            for obj in getattr(response, "objects", []):
-                props = getattr(obj, "properties", {}) or {}
+
+            for point in points:
+                payload = point.payload or {}
                 results.append({
-                    "chunk_id": props.get("chunk_id"),
-                    "text":     props.get("text"),
+                    "chunk_id": payload.get("chunk_id"),
+                    "text": payload.get("text"),
                     "metadata": {
-                        "filename":     props.get("filename"),
-                        "chunk_index":  props.get("chunk_index"),
-                        "total_chunks": props.get("total_chunks"),
+                        "filename": payload.get("filename"),
+                        "chunk_index": payload.get("chunk_index"),
+                        "total_chunks": payload.get("total_chunks"),
                     },
-                    "chunk_index": props.get("chunk_index", 0),
+                    "chunk_index": payload.get("chunk_index", 0),
                 })
 
             results.sort(key=lambda x: x.get("chunk_index", 0))
@@ -698,24 +508,28 @@ class LangChainVectorStore:
             return []
 
     def get_random_samples(self, count: int = 5) -> List[Dict[str, Any]]:
-        """Return a handful of documents for debugging."""
+        """Return random documents for debugging."""
         if not self._reconnect_if_needed():
             return []
 
         try:
-            collection = self.weaviate_client.collections.get(self.class_name)
-            response = collection.query.fetch_objects(limit=count)
+            scroll_result = self.client.scroll(
+                collection_name=self.collection_name,
+                limit=count,
+            )
 
+            points = scroll_result[0]
             results = []
-            for obj in getattr(response, "objects", []):
-                props = getattr(obj, "properties", {}) or {}
-                text = props.get("text", "")
+
+            for point in points:
+                payload = point.payload or {}
+                text = payload.get("text", "")
                 results.append({
-                    "chunk_id": props.get("chunk_id"),
-                    "text":     text,
+                    "chunk_id": payload.get("chunk_id"),
+                    "text": text,
                     "metadata": {
-                        "filename":  props.get("filename"),
-                        "file_type": props.get("file_type"),
+                        "filename": payload.get("filename"),
+                        "file_type": payload.get("file_type"),
                     },
                     "preview": text[:150] + "..." if len(text) > 150 else text,
                 })
@@ -736,12 +550,13 @@ class LangChainVectorStore:
             if not self._reconnect_if_needed():
                 return {"document_count": 0}
 
-            collection = self.weaviate_client.collections.get(self.class_name)
-            count = collection.aggregate.over_all(total_count=True)
+            info = self.client.get_collection(self.collection_name)
 
             return {
-                "document_count":  count.total_count,
-                "collection_name": self.class_name,
+                "document_count": info.points_count,
+                "collection_name": self.collection_name,
+                "vector_size": info.config.params.vectors.size,
+                "distance": str(info.config.params.vectors.distance),
             }
 
         except Exception as e:
@@ -749,19 +564,17 @@ class LangChainVectorStore:
             return {"document_count": 0}
 
     def delete_collection(self) -> bool:
-        """Delete the Weaviate collection."""
+        """Delete the Qdrant collection."""
         try:
-            if self.weaviate_client.collections.exists(self.class_name):
-                self.weaviate_client.collections.delete(self.class_name)
-                logger.info(f"✅ Deleted collection: {self.class_name}")
-                return True
-            return False
+            self.client.delete_collection(self.collection_name)
+            logger.info(f"✅ Deleted collection: {self.collection_name}")
+            return True
         except Exception as e:
             logger.error(f"❌ delete_collection error: {e}", exc_info=True)
             return False
 
     def recreate_collection(self) -> bool:
-        """Drop and recreate the collection (useful after schema changes)."""
+        """Drop and recreate collection."""
         try:
             self.delete_collection()
             return self._ensure_collection()

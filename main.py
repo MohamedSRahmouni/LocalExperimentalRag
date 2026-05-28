@@ -64,8 +64,8 @@ from app.core.startup import startup_event, shutdown_event
 from app.core.metrics import init_metrics
 from app.core.metrics_middleware import PrometheusMiddleware
 from app.api.routes import metrics_route
-# Import routers
-from app.api.routes import pages, upload, chat, stats, weaviate, retrieve, rag
+# Import routers ← CHANGED: removed weaviate
+from app.api.routes import pages, upload, chat, stats, retrieve, rag
 
 # ============================================================================
 # SETUP
@@ -111,7 +111,7 @@ app.include_router(pages.router, tags=["Pages"])
 app.include_router(upload.router, prefix="/upload", tags=["Upload"])
 app.include_router(chat.router, prefix="/api", tags=["Chat"])
 app.include_router(stats.router, prefix="/api", tags=["Statistics"])
-app.include_router(weaviate.router, prefix="/api/weaviate", tags=["Weaviate Admin"])
+# ← REMOVED: weaviate router
 app.include_router(retrieve.router, prefix="/api", tags=["Retrieval"])
 app.include_router(rag.router, prefix="/api", tags=["RAG"])
 
@@ -131,10 +131,11 @@ def main():
     logger.info("="*80)
     logger.info(f"🌐 Server URL: http://{settings.HOST}:{settings.PORT}")
     logger.info(f"🤖 Embedding Model: {settings.EMBEDDING_MODEL}")
-    logger.info(f"💻 Device: CPU")
+    logger.info(f"💻 Device: {'GPU' if settings.USE_GPU else 'CPU'}")  # ← UPDATED
     logger.info(f"✂️  Chunking: {settings.CHUNKING_METHOD}")
     logger.info(f"📦 Batch Size: {settings.EMBEDDING_BATCH_SIZE}")
-    logger.info(f"🗄️  Vector DB: Weaviate")
+    logger.info(f"🗄️  Vector DB: Qdrant")                              # ← CHANGED
+    logger.info(f"🔗 Qdrant URL: {settings.QDRANT_URL}")               # ← NEW
     logger.info("="*80)
     logger.info("Press Ctrl+C to stop")
     logger.info("="*80)

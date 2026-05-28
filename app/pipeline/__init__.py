@@ -4,7 +4,7 @@ Pipeline Module — LangGraph Powered
 
 from .document_loader import LangChainDocumentLoader
 from .embeddings      import LangChainEmbeddingManager
-from app.pipeline.vectorstore import LangChainVectorStore
+from app.pipeline.vectorstore import LangChainQdrantStore
 
 from .rag_chain       import LangChainRAGService, RAGConfig
 from .memory          import ConversationMemoryManager
@@ -25,7 +25,7 @@ __all__ = [
     # Core pipeline
     'LangChainDocumentLoader',
     'LangChainEmbeddingManager',
-    'LangChainVectorStore',
+    'LangChainQdrantStore',
     'LangChainRAGService',
     'RAGConfig',
     'ConversationMemoryManager',

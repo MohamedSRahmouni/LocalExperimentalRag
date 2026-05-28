@@ -1,9 +1,11 @@
 """
 RAG Chain Pipeline - LangGraph Powered
+Enhanced with better retrieval strategies
 """
 
 import logging
 import re
+import unicodedata
 from typing import Optional, List, Dict, Any, Iterator
 from dataclasses import dataclass
 import time
@@ -23,11 +25,11 @@ logger = logging.getLogger(__name__)
 @dataclass
 class RAGConfig:
     top_k:              int   = 5
-    min_score:          float = 0.1    # ✅ lowered from 0.3
+    min_score:          float = 0.3
     enable_reranking:   bool  = True
     use_hybrid:         bool  = True
-    bm25_weight:        float = 0.4
-    vector_weight:      float = 0.6
+    bm25_weight:        float = 0.5
+    vector_weight:      float = 0.5
     temperature:        float = 0.1
     max_tokens:         int   = 1000
     model:              str   = "local-model"
@@ -45,14 +47,15 @@ class RetrievalConfig:
     def __init__(
         self,
         top_k:              int   = 5,
-        min_score:          float = 0.1,    # ✅ lowered from 0.3
+        min_score:          float = 0.3,
         max_context_length: int   = 4000,
         enable_reranking:   bool  = True,
         diversity_weight:   float = 0.0,
         recency_weight:     float = 0.0,
         use_hybrid:         bool  = True,
-        bm25_weight:        float = 0.4,
-        vector_weight:      float = 0.6,
+        bm25_weight:        float = 0.5,
+        vector_weight:      float = 0.5,
+        rrf_k:              int   = 20,
     ):
         self.top_k              = top_k
         self.min_score          = min_score
@@ -63,6 +66,7 @@ class RetrievalConfig:
         self.use_hybrid         = use_hybrid
         self.bm25_weight        = bm25_weight
         self.vector_weight      = vector_weight
+        self.rrf_k              = rrf_k
 
 
 # ============================================================
@@ -93,98 +97,262 @@ class RetrievalResult:
 
 
 # ============================================================
-# BM25 INDEX
+# BM25 INDEX - CORPUS-WIDE
 # ============================================================
 
 class BM25Index:
-    def __init__(self):
-        self.index            = None
-        self.chunks           = []
-        self.tokenized_corpus = []
+    """
+    Robust corpus-wide BM25 index.
+
+    Handles:
+    - Accent normalization  (ingénieur == ingenieur)
+    - Multilingual stop words (FR + EN + AR basics)
+    - Aggressive tokenization (camelCase, snake_case, dots, slashes)
+    - Graceful corpus loading (get_all_chunks → get_random_samples → fallback)
+    - Debug diagnostics built in
+    """
+
+    # ── Stop words (post-normalization, no accented chars) ─────────────────
+    STOP_WORDS = {
+        # French
+        "le","la","les","un","une","des","du","de","d",
+        "et","ou","en","a","au","aux","ce","se","cet","cette",
+        "est","son","sa","ses","mon","ma","mes","ton","ta","tes",
+        "que","qui","quoi","dont","je","tu","il","elle",
+        "nous","vous","ils","elles","on","y",
+        "sur","dans","par","pour","avec","sans","sous","vers",
+        "plus","mais","donc","car","ni","or","si","bien",
+        "tout","tous","toute","toutes","aussi","tres","meme",
+        "encore","alors","comme","avait","avoir","avais",
+        "avons","avez","etait","etaient","etre",
+        "fait","faire","va","vais","sont","ont","ete","eu",
+        "apres","avant","entre","lors","depuis","pendant",
+        # English
+        "the","an","is","are","was","were","be","been","being",
+        "of","in","on","at","to","for","with","by","from",
+        "this","that","these","those","it","its","as","into",
+        "have","has","had","do","does","did","will","would",
+        "could","should","may","might","can","shall","not",
+        "and","or","but","so","yet","about","through","over",
+        "he","she","they","we","you","i","me","him","her","us",
+        "his","their","our","your","my",
+        # Arabic basics (transliterated)
+        "wa","fi","min","ila","an","ma","la","li","ala","bi",
+        "had","maa","kan","haa","aw","thm","fy",
+    }
+
+    def __init__(self, vectorstore=None):
+        self.index:             Any                  = None
+        self.chunks:            List[Dict]           = []
+        self.tokenized_corpus:  List[List[str]]      = []
+        self.vectorstore                             = vectorstore
+        self._initialized:      bool                 = False
+        self._vocab_size:       int                  = 0
+
+    # ── Normalization ───────────────────────────────────────────────────────
+
+    @staticmethod
+    def _normalize(text: str) -> str:
+        """
+        Unicode NFD → strip combining marks → lowercase.
+        ingénieur → ingenieur, Full-Stack → full stack, etc.
+        """
+        text = unicodedata.normalize("NFD", text)
+        text = "".join(c for c in text if unicodedata.category(c) != "Mn")
+        return text.lower()
+
+    # ── Tokenizer ───────────────────────────────────────────────────────────
 
     def _tokenize(self, text: str) -> List[str]:
-        text   = text.lower()
-        text   = re.sub(r'[^\w\s]', ' ', text)
+        """
+        General-purpose tokenizer:
+        1. Normalize accents + lowercase
+        2. Split camelCase / PascalCase
+        3. Replace all non-alphanumeric with spaces
+        4. Remove stop words + short tokens
+        """
+        if not text or not text.strip():
+            return []
+
+        text = self._normalize(text)
+
+        # Split camelCase / PascalCase (fullStack → full stack)
+        text = re.sub(r"([a-z])([A-Z])", r"\1 \2", text)
+        # Replace non-alphanumeric with space
+        text = re.sub(r"[^a-z0-9\s]", " ", text)
+
         tokens = text.split()
-
-        stop_words = {
-            'le', 'la', 'les', 'un', 'une', 'des', 'du', 'de',
-            'et', 'ou', 'en', 'à', 'au', 'aux', 'ce', 'se',
-            'est', 'son', 'sa', 'ses', 'mon', 'ma', 'mes',
-            'que', 'qui', 'quoi', 'dont', 'où', 'je', 'tu',
-            'il', 'elle', 'nous', 'vous', 'ils', 'elles',
-            'sur', 'dans', 'par', 'pour', 'avec', 'sans',
-            'plus', 'mais', 'donc', 'car', 'ni', 'or',
-            'the', 'an', 'is', 'are', 'was', 'were',
-            'of', 'in', 'on', 'at', 'to', 'for', 'with',
-            'this', 'that', 'these', 'those', 'it', 'its',
-            'be', 'been', 'being', 'have', 'has', 'had',
-            'do', 'does', 'did', 'will', 'would', 'could',
-            'should', 'may', 'might', 'can', 'shall',
-            'and', 'or', 'but', 'not', 'so', 'yet',
-            'from', 'by', 'about', 'as', 'into', 'through'
-        }
-
         return [
             t for t in tokens
-            if t not in stop_words and len(t) >= 2
+            if t not in self.STOP_WORDS and len(t) >= 2
         ]
 
-    def build(self, chunks: List[Dict[str, Any]]) -> bool:
-        try:
-            from rank_bm25 import BM25Okapi
+    # ── Corpus loading ──────────────────────────────────────────────────────
 
-            if not chunks:
-                return False
-
-            self.chunks           = chunks
-            self.tokenized_corpus = [
-                self._tokenize(c.get('text', ''))
-                for c in chunks
-            ]
-            self.index = BM25Okapi(self.tokenized_corpus)
-            logger.info(f"✅ BM25 index: {len(chunks)} docs")
+    def initialize_from_corpus(self, max_chunks: int = 2000) -> bool:
+        """
+        Build a corpus-wide BM25 index.
+        Tries multiple vectorstore APIs in order of preference.
+        """
+        if self._initialized:
             return True
 
-        except ImportError:
-            logger.error("❌ rank-bm25 not installed!")
+        if not self.vectorstore:
+            logger.warning("⚠️  BM25: no vectorstore provided")
             return False
-        except Exception as e:
-            logger.error(f"❌ BM25 build: {e}")
-            return False
-
-    def search(self, query: str, top_k: int = 10) -> List[Dict[str, Any]]:
-        if not self.index or not self.chunks:
-            return []
 
         try:
-            tokenized = self._tokenize(query)
-            if not tokenized:
-                return []
+            from rank_bm25 import BM25Okapi
+        except ImportError:
+            logger.error("❌ BM25: rank-bm25 not installed (pip install rank-bm25)")
+            return False
 
-            scores  = self.index.get_scores(tokenized)
-            top_idx = sorted(
-                range(len(scores)),
-                key=lambda i: scores[i],
-                reverse=True
-            )[:top_k]
+        chunks = self._load_chunks(max_chunks)
+        if not chunks:
+            logger.warning("⚠️  BM25: corpus is empty — index not built")
+            return False
 
-            max_score = max(scores) if max(scores) > 0 else 1.0
-            results   = []
+        self.chunks           = chunks
+        self.tokenized_corpus = [self._tokenize(c.get("text", "")) for c in chunks]
+        non_empty             = sum(1 for t in self.tokenized_corpus if t)
 
-            for idx in top_idx:
-                if scores[idx] <= 0:
-                    continue
-                chunk = self.chunks[idx].copy()
-                chunk['bm25_score']     = scores[idx] / max_score
-                chunk['bm25_raw_score'] = float(scores[idx])
-                results.append(chunk)
+        if non_empty == 0:
+            logger.warning(
+                "⚠️  BM25: all documents tokenized to empty — "
+                "check language / stop word list"
+            )
+            return False
 
-            return results
+        self.index        = BM25Okapi(self.tokenized_corpus)
+        self._initialized = True
 
-        except Exception as e:
-            logger.error(f"❌ BM25 search: {e}")
+        vocab            = {t for tokens in self.tokenized_corpus for t in tokens}
+        self._vocab_size = len(vocab)
+
+        logger.info(
+            f"✅ BM25 index built: {len(chunks)} docs | "
+            f"{non_empty} non-empty | vocab={self._vocab_size}"
+        )
+        return True
+
+    def _load_chunks(self, max_chunks: int) -> List[Dict]:
+        """
+        Try every reasonable vectorstore API to get the full corpus.
+        Returns a list of dicts with at least {'text': ..., 'chunk_id': ...}.
+        """
+        methods = [
+            ("get_all_chunks",     lambda: self.vectorstore.get_all_chunks(limit=max_chunks)),
+            ("get_chunks",         lambda: self.vectorstore.get_chunks(limit=max_chunks)),
+            ("list_chunks",        lambda: self.vectorstore.list_chunks(limit=max_chunks)),
+            ("get_random_samples", lambda: self.vectorstore.get_random_samples(count=max_chunks)),
+            ("similarity_search",  lambda: self._load_via_search()),
+        ]
+
+        for name, fn in methods:
+            attr = name.split("(")[0]
+            if not hasattr(self.vectorstore, attr):
+                continue
+            try:
+                chunks = fn()
+                if chunks:
+                    logger.info(f"   BM25 corpus loaded via {name}(): {len(chunks)} chunks")
+                    return chunks
+            except Exception as e:
+                logger.debug(f"   {name}() failed: {e}")
+
+        logger.error("❌ BM25: no corpus-loading method succeeded")
+        return []
+
+    def _load_via_search(self, sample_queries: Optional[List[str]] = None) -> List[Dict]:
+        """
+        Last-resort: run broad semantic searches to collect representative chunks.
+        Not ideal (may miss chunks), but better than nothing.
+        """
+        queries = sample_queries or [
+            "experience", "formation", "competence",
+            "projet", "skill", "education", "work",
+        ]
+        seen: Dict[str, Dict] = {}
+        for q in queries:
+            try:
+                results = self.vectorstore.semantic_search(
+                    query_text=q, embedder=None, top_k=50, min_score=0.0
+                )
+                for r in results:
+                    cid = r.get("chunk_id", "")
+                    if cid and cid not in seen:
+                        seen[cid] = r
+            except Exception:
+                pass
+        return list(seen.values())
+
+    # ── Search ──────────────────────────────────────────────────────────────
+
+    def search(self, query: str, top_k: int = 10) -> List[Dict[str, Any]]:
+        """
+        Search the BM25 index.
+        Returns chunks enriched with 'bm25_score' (0–1 normalized).
+        """
+        if not self._initialized or not self.index:
+            logger.warning("⚠️  BM25: index not initialized")
             return []
+
+        tokens = self._tokenize(query)
+        if not tokens:
+            logger.warning(f"⚠️  BM25: query '{query}' tokenized to nothing")
+            return []
+
+        scores  = self.index.get_scores(tokens)
+        max_s   = max(scores) if max(scores) > 0 else 1.0
+        top_idx = sorted(range(len(scores)), key=lambda i: scores[i], reverse=True)[:top_k]
+
+        results = []
+        for idx in top_idx:
+            if scores[idx] <= 0:
+                continue
+            chunk = self.chunks[idx].copy()
+            chunk["bm25_score"]     = float(scores[idx]) / max_s
+            chunk["bm25_raw_score"] = float(scores[idx])
+            results.append(chunk)
+
+        if results:
+            logger.info(
+                f"   BM25: '{query}' → tokens={tokens} | "
+                f"hits={len(results)} | top_score={results[0]['bm25_score']:.3f}"
+            )
+        else:
+            logger.info(f"   BM25: '{query}' → tokens={tokens} | hits=0")
+
+        return results
+
+    # ── Diagnostics ─────────────────────────────────────────────────────────
+
+    def debug_query(self, query: str) -> Dict[str, Any]:
+        """
+        Call this when BM25 returns 0 results to understand why.
+        Shows tokens produced and whether they exist in the vocab.
+        """
+        tokens   = self._tokenize(query)
+        vocab    = {t for toks in self.tokenized_corpus for t in toks}
+        in_vocab = [t for t in tokens if t in vocab]
+        missing  = [t for t in tokens if t not in vocab]
+
+        info = {
+            "query":            query,
+            "normalized_query": self._normalize(query),
+            "tokens":           tokens,
+            "tokens_in_vocab":  in_vocab,
+            "tokens_missing":   missing,
+            "corpus_size":      len(self.chunks),
+            "vocab_size":       self._vocab_size,
+            "index_ready":      self._initialized,
+        }
+
+        logger.info("🔎 BM25 debug:")
+        for k, v in info.items():
+            logger.info(f"   {k}: {v}")
+
+        return info
 
 
 # ============================================================
@@ -199,13 +367,16 @@ class RetrievalService:
     ):
         self.vectorstore = vectorstore
         self.config      = config or RetrievalConfig()
-        self.bm25_index  = BM25Index()
-        self._bm25_built = False
+
+        self.bm25_index = BM25Index(vectorstore=vectorstore)
+        if self.config.use_hybrid:
+            self.bm25_index.initialize_from_corpus(max_chunks=2000)
 
         logger.info("✅ RetrievalService initialized")
         logger.info(f"   top_k     : {self.config.top_k}")
         logger.info(f"   min_score : {self.config.min_score}")
         logger.info(f"   hybrid    : {self.config.use_hybrid}")
+        logger.info(f"   RRF k     : {self.config.rrf_k}")
 
     def retrieve(
         self,
@@ -217,8 +388,6 @@ class RetrievalService:
 
         start_time = time.time()
 
-        # ✅ FIXED: use 'is None' instead of 'or'
-        # prevents 0.0 being treated as falsy
         top_k     = top_k     if top_k     is not None else self.config.top_k
         min_score = min_score if min_score is not None else self.config.min_score
 
@@ -249,7 +418,7 @@ class RetrievalService:
 
         # ── Fallback 1: lower threshold ────────────────────────
         if not results:
-            fallback_score = min_score * 0.5
+            fallback_score = max(0.2, min_score * 0.7)
             logger.warning(
                 f"⚠️  No results at {min_score:.2f} → "
                 f"trying {fallback_score:.2f}"
@@ -262,19 +431,14 @@ class RetrievalService:
             )
             logger.info(f"   Fallback 1: {len(results)} results")
 
-        # ── Fallback 2: no threshold at all ───────────────────
+        # ── Fallback 2: keyword-only search ───────────────────
         if not results:
-            logger.warning("⚠️  Still no results → trying min_score=0.0")
-            results = self._vector_retrieve(
-                query_variants=query_variants,
-                top_k=top_k,
-                min_score=0.0,
-                filters=filters,
-            )
-            logger.info(f"   Fallback 2: {len(results)} results")
+            logger.warning("⚠️  Still no results → trying keyword-only")
+            results = self._keyword_only_retrieve(query, top_k)
+            logger.info(f"   Fallback 2 (keywords): {len(results)} results")
 
         if not results:
-            logger.error("❌ No results found even at score=0.0")
+            logger.error("❌ No results found even with fallbacks")
             return self._empty_result(query, "No results found")
 
         # ── Rerank ─────────────────────────────────────────────
@@ -285,7 +449,7 @@ class RetrievalService:
 
         # ── Log score distribution ─────────────────────────────
         scores = [
-            c.get('final_score', c.get('similarity', 0.0))
+            c.get("final_score", c.get("similarity", 0.0))
             for c in results
         ]
         if scores:
@@ -300,20 +464,21 @@ class RetrievalService:
         retrieved_chunks = []
         for rank, c in enumerate(results, 1):
             chunk = RetrievedChunk(
-                chunk_id=c.get('chunk_id', f'c_{rank}'),
-                text=c.get('text', ''),
-                score=c.get('final_score', c.get('similarity', 0.0)),
-                source=c.get('metadata', {}).get('filename', 'unknown'),
-                metadata=c.get('metadata', {}),
+                chunk_id=c.get("chunk_id", f"c_{rank}"),
+                text=c.get("text", ""),
+                score=c.get("final_score", c.get("similarity", 0.0)),
+                source=c.get("metadata", {}).get("filename", "unknown"),
+                metadata=c.get("metadata", {}),
                 rank=rank,
-                vector_score=c.get('similarity', 0.0),
-                bm25_score=c.get('bm25_score', 0.0),
-                hybrid_score=c.get('final_score', 0.0),
+                vector_score=c.get("similarity", 0.0),
+                bm25_score=c.get("bm25_score", 0.0),
+                hybrid_score=c.get("final_score", 0.0),
             )
             retrieved_chunks.append(chunk)
 
             logger.info(
-                f"   #{rank} score={chunk.score:.4f} | "
+                f"   #{rank} score={chunk.score:.4f} "
+                f"(vec={chunk.vector_score:.3f}, bm25={chunk.bm25_score:.3f}) | "
                 f"src={chunk.source} | "
                 f"preview={chunk.text[:60].strip()}..."
             )
@@ -334,10 +499,10 @@ class RetrievalService:
             total_found=len(results),
             retrieval_time=retrieval_time,
             metadata={
-                'top_k':          top_k,
-                'min_score':      min_score,
-                'query_variants': query_variants,
-                'hybrid':         self.config.use_hybrid,
+                "top_k":          top_k,
+                "min_score":      min_score,
+                "query_variants": query_variants,
+                "hybrid":         self.config.use_hybrid,
             },
         )
 
@@ -351,39 +516,39 @@ class RetrievalService:
         min_score,
         filters
     ) -> List[Dict]:
-
-        # Vector search with relaxed threshold
+        """
+        True hybrid search:
+        - Vector search with reasonable threshold
+        - BM25 search on ENTIRE corpus
+        - RRF fusion
+        """
         vector_results = self._vector_retrieve(
             query_variants=query_variants,
-            top_k=top_k * 3,
-            min_score=min_score * 0.5,   # ✅ more relaxed for hybrid
+            top_k=top_k * 2,
+            min_score=max(0.2, min_score * 0.8),
             filters=filters,
         )
         logger.info(f"   Vector results: {len(vector_results)}")
 
-        # BM25 on top of vector results
         bm25_results = []
-        if vector_results:
-            built = self.bm25_index.build(vector_results)
-            self._bm25_built = built
+        for variant in query_variants:
+            results = self.bm25_index.search(variant, top_k=top_k * 2)
+            for r in results:
+                cid = r.get("chunk_id", "")
+                if cid and not any(b.get("chunk_id") == cid for b in bm25_results):
+                    bm25_results.append(r)
 
-        if self._bm25_built:
-            all_bm25 = {}
-            for variant in query_variants:
-                for r in self.bm25_index.search(variant, top_k * 2):
-                    cid = r.get('chunk_id', '')
-                    if (cid not in all_bm25 or
-                            r.get('bm25_score', 0) >
-                            all_bm25[cid].get('bm25_score', 0)):
-                        all_bm25[cid] = r
-            bm25_results = list(all_bm25.values())
-            logger.info(f"   BM25 results: {len(bm25_results)}")
+        # Debug if BM25 returns nothing
+        if not bm25_results:
+            self.bm25_index.debug_query(query)
 
-        # RRF fusion
+        logger.info(f"   BM25 results: {len(bm25_results)}")
+
         fused = self._rrf(
             vector_results=vector_results,
             bm25_results=bm25_results,
             top_k=top_k * 2,
+            k=self.config.rrf_k,
         )
         logger.info(f"   Fused results: {len(fused)}")
         return fused
@@ -407,19 +572,36 @@ class RetrievalService:
                 min_score=min_score,
                 filters=filters,
             )
-            logger.debug(
-                f"   variant='{variant}' → {len(chunks)} chunks"
-            )
+            logger.debug(f"   variant='{variant}' → {len(chunks)} chunks")
 
             for c in chunks:
-                cid = c.get('chunk_id', '')
+                cid = c.get("chunk_id", "")
                 if (cid not in all_chunks or
-                        c.get('similarity', 0) >
-                        all_chunks[cid].get('similarity', 0)):
+                        c.get("similarity", 0) >
+                        all_chunks[cid].get("similarity", 0)):
                     all_chunks[cid] = c
 
         results = list(all_chunks.values())
-        results.sort(key=lambda x: x.get('similarity', 0), reverse=True)
+        results.sort(key=lambda x: x.get("similarity", 0), reverse=True)
+        return results
+
+    # ── Keyword-only fallback ──────────────────────────────────
+
+    def _keyword_only_retrieve(
+        self,
+        query: str,
+        top_k: int,
+    ) -> List[Dict]:
+        """Pure keyword search fallback when vector search fails completely."""
+        logger.info(f"   🔑 Keyword-only search: '{query}'")
+
+        results = self.bm25_index.search(query, top_k=top_k * 2)
+
+        for r in results:
+            if "similarity" not in r:
+                r["similarity"] = r.get("bm25_score", 0.0)
+            r["final_score"] = r.get("bm25_score", 0.0)
+
         return results
 
     # ── RRF ────────────────────────────────────────────────────
@@ -429,35 +611,53 @@ class RetrievalService:
         vector_results,
         bm25_results,
         top_k,
-        k: int = 60
+        k: int = 20
     ) -> List[Dict]:
+        """
+        Reciprocal Rank Fusion with lower k value for better score distribution.
+        k=20 → scores range from 0.025 to 0.05 (more discriminative than k=60).
+        """
         rrf_scores: Dict[str, float] = {}
         chunk_data: Dict[str, Dict]  = {}
 
         for rank, chunk in enumerate(vector_results, 1):
-            cid   = chunk.get('chunk_id', f'v{rank}')
+            cid   = chunk.get("chunk_id", f"v{rank}")
             score = self.config.vector_weight * (1.0 / (k + rank))
             rrf_scores[cid] = rrf_scores.get(cid, 0.0) + score
             if cid not in chunk_data:
                 chunk_data[cid] = chunk.copy()
-                chunk_data[cid]['bm25_score'] = 0.0
+                chunk_data[cid]["bm25_score"] = 0.0
 
         for rank, chunk in enumerate(bm25_results, 1):
-            cid   = chunk.get('chunk_id', f'b{rank}')
+            cid   = chunk.get("chunk_id", f"b{rank}")
             score = self.config.bm25_weight * (1.0 / (k + rank))
             rrf_scores[cid] = rrf_scores.get(cid, 0.0) + score
             if cid not in chunk_data:
                 chunk_data[cid] = chunk.copy()
-                chunk_data[cid]['similarity'] = 0.0
-            chunk_data[cid]['bm25_score'] = chunk.get('bm25_score', 0.0)
+                chunk_data[cid]["similarity"] = 0.0
+            chunk_data[cid]["bm25_score"] = chunk.get("bm25_score", 0.0)
+
+        # Normalize RRF scores to 0-1
+        if rrf_scores:
+            max_rrf = max(rrf_scores.values())
+            if max_rrf > 0:
+                rrf_scores = {cid: s / max_rrf for cid, s in rrf_scores.items()}
 
         results = []
         for cid, rrf_score in rrf_scores.items():
             c = chunk_data[cid].copy()
-            c['final_score'] = rrf_score
+            c["final_score"] = rrf_score
             results.append(c)
 
-        results.sort(key=lambda x: x['final_score'], reverse=True)
+        results.sort(key=lambda x: x["final_score"], reverse=True)
+
+        if results:
+            scores = [r["final_score"] for r in results[:10]]
+            logger.info(
+                f"   RRF scores (top 10): "
+                f"max={max(scores):.4f}, min={min(scores):.4f}"
+            )
+
         return results[:top_k]
 
     # ── Rerank ─────────────────────────────────────────────────
@@ -470,29 +670,31 @@ class RetrievalService:
     ) -> List[Dict]:
         return sorted(
             chunks,
-            key=lambda x: x.get('final_score', x.get('similarity', 0.0)),
+            key=lambda x: x.get("final_score", x.get("similarity", 0.0)),
             reverse=True,
         )[:top_k]
 
     # ── Query variants ─────────────────────────────────────────
 
     def _generate_query_variants(self, query: str) -> List[str]:
+        """Generate comprehensive query variants for better recall."""
         variants  = [query]
         query_low = query.lower().strip()
 
         stop_words = {
-            'le','la','les','un','une','des','du','de',
-            'et','ou','en','à','au','aux','ce','se',
-            'est','son','sa','ses',"c'est","qu'est",
-            'que','qui','quoi','dont','quel','quelle',
-            'comment','pourquoi','quand','combien',
-            'dans','sur','par','pour','avec','sans',
-            'the','an','is','are','of','in','on',
-            'what','how','why','who','when','where',
-            'and','or','but','not','with','from',
-            'give','show','tell','explain',
+            "le","la","les","un","une","des","du","de",
+            "et","ou","en","a","au","aux","ce","se",
+            "est","son","sa","ses","c'est","qu'est",
+            "que","qui","quoi","dont","quel","quelle",
+            "comment","pourquoi","quand","combien",
+            "dans","sur","par","pour","avec","sans",
+            "comme","avait","avoir","depuis","pendant",
+            "the","an","is","are","of","in","on",
+            "what","how","why","who","when","where",
+            "and","or","but","not","with","from",
         }
 
+        # Variant 1: keywords only (remove stop words)
         words = [
             w for w in query_low.split()
             if w not in stop_words and len(w) >= 2
@@ -503,7 +705,19 @@ class RetrievalService:
             if kw not in variants:
                 variants.append(kw)
 
-        return variants[:2]
+        # Variant 2: core nouns/verbs (remove question words too)
+        question_words = {
+            "qui","quoi","quel","quelle","comment","pourquoi","quand","ou",
+            "what","how","why","who","when","where","which",
+        }
+        core_words = [w for w in words if w not in question_words]
+
+        if core_words and len(core_words) >= 2:
+            core = " ".join(core_words)
+            if core not in variants:
+                variants.append(core)
+
+        return variants[:3]
 
     # ── Context builder ────────────────────────────────────────
 
@@ -531,9 +745,7 @@ class RetrievalService:
                 block = f"[Source: {chunk.source}]\n{chunk.text}\n"
 
             if total + len(block) > self.config.max_context_length:
-                logger.warning(
-                    f"⚠️  Context limit reached at chunk #{chunk.rank}"
-                )
+                logger.warning(f"⚠️  Context limit reached at chunk #{chunk.rank}")
                 break
 
             parts.append(block)
@@ -548,7 +760,7 @@ class RetrievalService:
             context="",
             total_found=0,
             retrieval_time=0.0,
-            metadata={'error': reason},
+            metadata={"error": reason},
         )
 
 
@@ -596,6 +808,7 @@ class LangChainRAGService:
                 use_hybrid=self.config.use_hybrid,
                 bm25_weight=self.config.bm25_weight,
                 vector_weight=self.config.vector_weight,
+                rrf_k=20,
             ),
         )
 
@@ -613,6 +826,7 @@ class LangChainRAGService:
         logger.info(f"   Top-K      : {self.config.top_k}")
         logger.info(f"   Min Score  : {self.config.min_score}")
         logger.info(f"   Hybrid     : {self.config.use_hybrid}")
+        logger.info(f"   RRF k      : 20")
         logger.info("=" * 70)
 
     def _init_llm(self):
@@ -761,12 +975,10 @@ class LangChainRAGService:
         history_text = ""
         if history:
             for msg in history[-4:]:
-                role          = "User" if msg['role'] == 'user' else "Assistant"
+                role          = "User" if msg["role"] == "user" else "Assistant"
                 history_text += f"{role}: {msg['content']}\n"
 
-        has_tables  = any(
-            c.metadata.get("is_table") for c in retrieval_result.chunks
-        )
+        has_tables  = any(c.metadata.get("is_table") for c in retrieval_result.chunks)
         full_prompt = self._build_prompt(
             question=question,
             context=retrieval_result.context,

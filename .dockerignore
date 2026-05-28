@@ -1,0 +1,41 @@
+# .dockerignore
+.git
+.gitignore
+README.md
+Dockerfile
+docker-compose.yml
+.dockerignore
+
+# Python
+__pycache__
+*.pyc
+*.pyo
+*.pyd
+.Python
+.pytest_cache
+.coverage
+
+# Virtual environments
+venv/
+.venv/
+env/
+
+# Data directories (will be mounted as volumes)
+uploads/
+processed/
+logs/
+embeddings_cache/
+embeddings_output/
+
+# Models (will be mounted as volumes)
+models/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db

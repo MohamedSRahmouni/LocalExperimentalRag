@@ -16,7 +16,7 @@ from app.api.dependencies import (
     get_doc_processor,
     get_embedding_manager,
     get_vector_store,
-    get_weaviate_client
+    get_qdrant_client       # ← CHANGED: was get_weaviate_client
 )
 
 router = APIRouter()
@@ -34,7 +34,7 @@ async def get_stats():
         # Get services
         doc_processor = get_doc_processor()
         embedding_manager = get_embedding_manager()
-        weaviate_client = get_weaviate_client()
+        qdrant_client = get_qdrant_client()         # ← CHANGED
         vector_store = get_vector_store()
         
         # Base stats
@@ -42,9 +42,11 @@ async def get_stats():
             "uploaded_files": upload_count,
             "processor_available": doc_processor is not None,
             "embedding_manager_available": embedding_manager is not None,
-            "weaviate_connected": weaviate_client.is_connected() if weaviate_client else False,
+            "qdrant_connected": (                   # ← CHANGED: was weaviate_connected
+                vector_store.is_connected() if vector_store else False
+            ),
             "embedding_model": settings.EMBEDDING_MODEL,
-            "device": "cpu",
+            "device": "gpu" if settings.USE_GPU else "cpu",  # ← UPDATED
             "chunking_method": settings.CHUNKING_METHOD
         }
         
@@ -67,12 +69,13 @@ async def get_stats():
                 "embedding_model_type": embedding_info.get('model_type')
             })
         
-        # Weaviate stats
-        if vector_store and weaviate_client and weaviate_client.is_connected():
+        # Qdrant stats ← CHANGED: was Weaviate stats
+        if vector_store and vector_store.is_connected():
             vector_stats = vector_store.get_stats()
             stats.update({
                 "vector_db_chunks": vector_stats.get('document_count', 0),
-                "vector_db_collection": settings.WEAVIATE_CLASS_NAME
+                "vector_db_collection": settings.QDRANT_COLLECTION_NAME,  # ← CHANGED
+                "vector_db_type": "qdrant"          # ← NEW
             })
         
         # Load embedded data if available
@@ -99,12 +102,12 @@ async def model_info():
     try:
         doc_processor = get_doc_processor()
         embedding_manager = get_embedding_manager()
-        weaviate_client = get_weaviate_client()
+        vector_store = get_vector_store()           # ← CHANGED
         
         info = {
             "embedding_model": settings.EMBEDDING_MODEL,
-            "model_type": "sentence-transformer",
-            "device": "cpu",
+            "model_type": "multilingual-e5-small",  # ← UPDATED
+            "device": "gpu" if settings.USE_GPU else "cpu",  # ← UPDATED
             "chunking_method": settings.CHUNKING_METHOD,
             "similarity_threshold": settings.SIMILARITY_THRESHOLD,
             "min_chunk_size": settings.MIN_CHUNK_SIZE,
@@ -112,9 +115,12 @@ async def model_info():
             "embedding_batch_size": settings.EMBEDDING_BATCH_SIZE,
             "parallel_embedding": settings.ENABLE_PARALLEL_EMBEDDING,
             "ocr_language": settings.OCR_LANGUAGE,
-            "vector_db": "weaviate",
-            "weaviate_class": settings.WEAVIATE_CLASS_NAME,
-            "weaviate_connected": weaviate_client.is_connected() if weaviate_client else False
+            "vector_db": "qdrant",                  # ← CHANGED: was "weaviate"
+            "qdrant_collection": settings.QDRANT_COLLECTION_NAME,  # ← CHANGED
+            "qdrant_url": settings.QDRANT_URL,      # ← NEW
+            "qdrant_connected": (                   # ← CHANGED
+                vector_store.is_connected() if vector_store else False
+            )
         }
         
         # Chunker info

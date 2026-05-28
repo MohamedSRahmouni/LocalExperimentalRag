@@ -83,12 +83,11 @@ class Settings(BaseSettings):
     # ============================================================================
     # WEAVIATE CONFIGURATION
     # ============================================================================
-    WEAVIATE_URL: Optional[str] = os.getenv('WEAVIATE_URL')
-    WEAVIATE_API_KEY: Optional[str] = os.getenv('WEAVIATE_API_KEY')
-    WEAVIATE_CLASS_NAME: str = os.getenv('WEAVIATE_CLASS_NAME', 'Ragdocument')
-    WEAVIATE_VECTOR_DIMS: int = int(os.getenv('WEAVIATE_VECTOR_DIMS', '1536'))
-    USE_EMBEDDED_WEAVIATE: bool = os.getenv('USE_EMBEDDED_WEAVIATE', 'false').lower() == 'true'
-
+    QDRANT_URL:             str = "http://localhost:6333"
+    QDRANT_API_KEY:         str = ""
+    QDRANT_COLLECTION_NAME: str = "rag_documents"
+    QDRANT_VECTOR_SIZE:     int = 384
+    QDRANT_DISTANCE:        str = "Cosine"
      
     # ============================================================================
     # LM STUDIO CONFIGURATION
