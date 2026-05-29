@@ -163,20 +163,17 @@ def fallback_node(state: RAGState) -> Dict[str, Any]:
 # ============================================================
 
 def prompt_node(state: RAGState) -> Dict[str, Any]:
-    """Build the full LLM prompt."""
     start = time.time()
-    logger.info(
-        f"📝 [Prompt Node] "
-        f"context={len(state['context'])} chars | "
-        f"tables={state.get('has_table_chunks', False)}"
-    )
 
     question     = state["question"]
     context      = state["context"]
     history_text = state.get("history_text", "")
     has_tables   = state.get("has_table_chunks", False)
 
-    if has_tables:
+    # ── Use override rules if provided (e.g. web search) ───────
+    if state.get("_prompt_override"):
+        system_rules = state["_prompt_override"]
+    elif has_tables:
         system_rules = (
             "You are a precise and helpful assistant.\n"
             "Answer ONLY using the information in CONTEXT below.\n\n"
@@ -206,16 +203,13 @@ def prompt_node(state: RAGState) -> Dict[str, Any]:
 
     prompt += f"QUESTION: {question}\n\nANSWER:"
 
-    # ── Metrics ───────────────────────────────────────────────
     llm_prompt_length.observe(len(prompt))
     rag_node_duration_seconds.labels(node_name="prompt").observe(
         time.time() - start
     )
-
     logger.info(f"   Prompt length: {len(prompt)} chars")
 
     return {"full_prompt": prompt}
-
 
 # ============================================================
 # NODE 5: GENERATION NODE
@@ -437,3 +431,245 @@ def memory_save_node(
     )
 
     return {"metadata": metadata}
+
+
+
+
+# ============================================================
+# NODE 9: MCP NODE
+# ============================================================
+
+
+def web_search_node(
+    state: RAGState,
+    mcp_client=None,
+) -> Dict[str, Any]:
+    """Execute web search via external MCP server."""
+    start = time.time()
+    logger.info(
+        f"🌐 [Web Search Node] query='{state['question'][:80]}'"
+    )
+
+    if not mcp_client:
+        logger.warning("⚠️  MCP client not configured")
+        return {
+            "web_search_result":  None,
+            "web_search_context": "",
+            "web_search_used":    False,
+            "route":              "fallback",
+        }
+
+    if not mcp_client.is_server_online("websearch"):
+        logger.warning("⚠️  WebSearch MCP server offline")
+        return {
+            "web_search_result":  None,
+            "web_search_context": "",
+            "web_search_used":    False,
+            "route":              "fallback",
+        }
+
+    # ── Call external MCP server ───────────────────────────────
+    result_text = mcp_client.web_search(
+        query=state["question"],
+        max_results=5,
+    )
+
+    elapsed = time.time() - start
+
+    rag_node_duration_seconds.labels(
+        node_name="web_search"
+    ).observe(elapsed)
+
+    if result_text and "No results found" not in result_text:
+        logger.info(
+            f"✅ Web search: {len(result_text)} chars "
+            f"in {elapsed:.2f}s"
+        )
+        return {
+            "web_search_result":  {"raw": result_text},
+            "web_search_context": result_text,
+            "web_search_used":    True,
+            "route":              "prompt",
+        }
+
+    logger.warning("⚠️  Web search returned no results")
+    return {
+        "web_search_result":  None,
+        "web_search_context": "",
+        "web_search_used":    False,
+        "route":              "fallback",
+    }
+
+def intent_detection_node(
+    state:      RAGState,
+    mcp_client=None,
+) -> Dict[str, Any]:
+    """Detect file/web intent using MCP client availability."""
+    start = time.time()
+    logger.info(
+        f"🎯 [Intent Detection] query='{state['question'][:80]}'"
+    )
+
+    needs_web_search  = False
+    needs_file_read   = False
+    detected_filename = None
+
+    query = state["question"]
+
+    # ── File intent ────────────────────────────────────────────
+    if mcp_client and mcp_client.is_server_online("filesystem"):
+        needs_file_read, detected_filename = _detect_file_intent(query)
+
+    # ── Web intent (explicit) ──────────────────────────────────
+    if mcp_client and mcp_client.is_server_online("websearch"):
+        needs_web_search = _detect_web_intent(query)
+
+    if not needs_file_read and not needs_web_search:
+        logger.info(
+            "   📚 Standard RAG → "
+            "web search auto-triggers if 0 results"
+        )
+
+    rag_node_duration_seconds.labels(
+        node_name="intent_detection"
+    ).observe(time.time() - start)
+
+    logger.info(
+        f"   file_read={needs_file_read} "
+        f"(file='{detected_filename}') | "
+        f"web_search={needs_web_search}"
+    )
+
+    return {
+        "needs_web_search":  needs_web_search,
+        "needs_file_read":   needs_file_read,
+        "detected_filename": detected_filename,
+    }
+
+def filesystem_node(
+    state: RAGState,
+    mcp_client=None,
+) -> Dict[str, Any]:
+    """Execute file read via external MCP server."""
+    start = time.time()
+    filename = state.get("detected_filename", "")
+    logger.info(f"📁 [FileSystem Node] file='{filename}'")
+
+    if not mcp_client:
+        logger.warning("⚠️  MCP client not configured")
+        return {
+            "file_result":    None,
+            "file_context":   "",
+            "file_read_used": False,
+            "route":          "retrieve",
+        }
+
+    if not mcp_client.is_server_online("filesystem"):
+        logger.warning("⚠️  FileSystem MCP server offline")
+        return {
+            "file_result":    None,
+            "file_context":   "",
+            "file_read_used": False,
+            "route":          "retrieve",
+        }
+
+    if not filename:
+        logger.warning("⚠️  No filename detected")
+        return {
+            "file_result":    None,
+            "file_context":   "",
+            "file_read_used": False,
+            "route":          "retrieve",
+        }
+
+    # ── Call external MCP server ───────────────────────────────
+    content = mcp_client.read_file(filename)
+    elapsed = time.time() - start
+
+    rag_node_duration_seconds.labels(
+        node_name="filesystem"
+    ).observe(elapsed)
+
+    success = not content.startswith("File not found") and \
+              not content.startswith("Access denied") and \
+              not content.startswith("Error")
+
+    if success:
+        logger.info(
+            f"✅ File read: '{filename}' "
+            f"({len(content)} chars) in {elapsed:.2f}s"
+        )
+        file_context = (
+            f"[FILE CONTENT: {filename}]\n\n{content}\n"
+        )
+        return {
+            "file_result": {
+                "filename":   filename,
+                "content":    content,
+                "char_count": len(content),
+                "source":     "filesystem",
+            },
+            "file_context":   file_context,
+            "file_read_used": True,
+            "route":          "prompt",
+        }
+
+    logger.warning(f"⚠️  File read failed: {content[:100]}")
+    return {
+        "file_result":    None,
+        "file_context":   content,
+        "file_read_used": False,
+        "route":          "retrieve",
+    }
+
+
+
+import re
+
+_FILE_PATTERNS = [
+    r"\bread\s+(?:the\s+)?(?:file\s+)?['\"]?([^\s'\"]+\.\w+)['\"]?",
+    r"\bopen\s+(?:the\s+)?(?:file\s+)?['\"]?([^\s'\"]+\.\w+)['\"]?",
+    r"\bshow\s+(?:me\s+)?(?:the\s+)?(?:content\s+of\s+)?['\"]?([^\s'\"]+\.\w+)['\"]?",
+    r"\blire\s+(?:le\s+)?(?:fichier\s+)?['\"]?([^\s'\"]+\.\w+)['\"]?",
+    r"\bouvrir\s+(?:le\s+)?(?:fichier\s+)?['\"]?([^\s'\"]+\.\w+)['\"]?",
+    r"\bafficher\s+(?:le\s+)?(?:fichier\s+)?['\"]?([^\s'\"]+\.\w+)['\"]?",
+    r"['\"]([^\s'\"]+\.\w{2,5})['\"]",
+    r"\b([\w\-\/\\]+\.(?:txt|pdf|md|csv|json|docx|log|yml|yaml))\b",
+]
+
+_FILE_KEYWORDS = [
+    "read file","open file","show file","load file",
+    "file content","content of","from file",
+    "lire fichier","ouvrir fichier","afficher fichier",
+    "contenu du fichier","depuis le fichier",
+    "lire le","montre moi","montrez moi",
+]
+
+_WEB_KEYWORDS = [
+    "search the web","search online","find online","look up",
+    "latest","recent","current","news","today",
+    "from the web","on the web","internet",
+    "cherche sur le web","recherche sur internet",
+    "actualité","récent","dernière","aujourd'hui",
+    "nouvelles","sur internet","en ligne","recherche web",
+]
+
+
+def _detect_file_intent(query: str):
+    """Returns (has_intent, filename)."""
+    q = query.lower()
+    has_intent = any(kw in q for kw in _FILE_KEYWORDS)
+    filename   = None
+    for pattern in _FILE_PATTERNS:
+        m = re.search(pattern, query, re.IGNORECASE)
+        if m:
+            filename   = m.group(1)
+            has_intent = True
+            break
+    return has_intent, filename
+
+
+def _detect_web_intent(query: str) -> bool:
+    """Returns True if explicit web search requested."""
+    q = query.lower()
+    return any(kw in q for kw in _WEB_KEYWORDS)

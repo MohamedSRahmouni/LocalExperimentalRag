@@ -1,42 +1,39 @@
 # ============================================================
 # Framework
 # ============================================================
-fastapi==0.104.1
-uvicorn==0.24.0
-python-multipart==0.0.6
+fastapi==0.115.0
+uvicorn==0.30.0
+python-multipart==0.0.9
 jinja2==3.1.2
 python-dotenv==1.0.0
 pydantic-settings==2.1.0
 
 # ============================================================
-# LangChain Core — upgraded to 0.2.x family
+# LangChain Core
 # ============================================================
 langchain==0.2.16
 langchain-core==0.2.43
 langchain-community==0.2.16
 langchain-openai==0.1.25
-langchain-weaviate==0.0.3
 
 # ============================================================
-# LangGraph — compatible with langchain-core 0.2.x
+# LangGraph
 # ============================================================
 langgraph==0.1.19
 
 # ============================================================
-# LangSmith - Observability & Monitoring
+# LangSmith
 # ============================================================
 langsmith==0.1.147
 
 # ============================================================
-# Document Processing (PDF / DOC / Tables)
+# Document Processing
 # ============================================================
 pdfplumber==0.10.3
 python-docx==1.1.0
 extract-msg==0.28.0
 beautifulsoup4==4.12.2
 csvkit==1.1.1
-
-# ✔ TABLE SUPPORT
 pandas==2.2.2
 tabulate==0.9.0
 
@@ -65,6 +62,15 @@ huggingface_hub>=0.23.0,<1.0.0
 # ============================================================
 qdrant-client==1.9.0
 langchain-qdrant==0.1.0
+
+# ============================================================
+# MCP Client SDK
+# Uses: ClientSession, sse_client from mcp.client.sse
+# Requires httpx>=0.27 and anyio>=4.0
+# ============================================================
+mcp>=1.0.0,<2.0.0
+anyio>=4.0.0,<5.0.0
+
 # ============================================================
 # Production - Robustness
 # ============================================================
@@ -82,8 +88,9 @@ opentelemetry-semantic-conventions==0.48b0
 
 # ============================================================
 # Utils
+# httpx bumped to >=0.27 — required by mcp>=1.0.0
 # ============================================================
-httpx>=0.24.0,<0.28.0
+httpx>=0.27.0,<0.28.0
 requests==2.31.0
 aiofiles==23.2.1
 python-magic==0.4.27
@@ -95,5 +102,6 @@ psutil>=5.9.0
 # ============================================================
 rank-bm25==0.2.2
 nltk==3.8.1
+
 
 # pip install torch==2.5.1+cu121 torchvision==0.20.1+cu121 --index-url https://download.pytorch.org/whl/cu121 

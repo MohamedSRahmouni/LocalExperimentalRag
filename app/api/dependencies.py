@@ -4,6 +4,7 @@ Singleton service instances for dependency injection
 """
 
 import logging
+import os
 import time
 from typing import Optional
 from app.core.config import settings
@@ -21,7 +22,7 @@ _vector_store:      Optional[object] = None
 _rag_service:       Optional[object] = None
 _memory_manager:    Optional[object] = None
 _langsmith_config:  Optional[object] = None
-
+_mcp_client: Optional[object] = None
 
 # ============================================================
 # INITIALIZATION
@@ -30,7 +31,8 @@ _langsmith_config:  Optional[object] = None
 def initialize_all():
     global _document_loader, _embedding_manager, _vector_store
     global _rag_service, _memory_manager, _langsmith_config
-
+    global _mcp_client
+    
     logger.info("=" * 80)
     logger.info("🚀 Initializing Pipeline Services")
     logger.info("=" * 80)
@@ -157,10 +159,52 @@ def initialize_all():
         )
         logger.info("✅ Memory Manager initialized")
 
+
+
         # ================================================================
-        # STEP 5: RAG Service
+        # STEP 5: MCP Client (connects to external servers)
         # ================================================================
-        logger.info("\n🤖 Step 5: Initializing RAG Service...")
+        logger.info("\n🔧 Step 5: Initializing MCP Client...")
+
+        try:
+            from app.services.mcp import MCPClientManager
+
+            _mcp_client = MCPClientManager(
+                filesystem_url=os.getenv(
+                    "MCP_FILESYSTEM_URL",
+                    "http://localhost:8001/sse"
+                ),
+                websearch_url=os.getenv(
+                    "MCP_WEBSEARCH_URL",
+                    "http://localhost:8002/sse"
+                ),
+            )
+
+            # Check which servers are online
+            health = _mcp_client.check_all_health()
+
+            # Discover tools from online servers
+            _mcp_client.discover_all_tools()
+            _mcp_client.set_ready(True)
+
+            logger.info("✅ MCP Client initialized")
+            logger.info(
+                f"   FileSystem server : "
+                f"{'✅ online' if health.get('filesystem') else '❌ offline'}"
+            )
+            logger.info(
+                f"   WebSearch server  : "
+                f"{'✅ online' if health.get('websearch') else '❌ offline'}"
+            )
+
+        except Exception as e:
+            logger.warning(f"⚠️  MCP Client failed (non-fatal): {e}")
+            _mcp_client = None
+
+        # ================================================================
+        # STEP 6: RAG Service
+        # ================================================================
+        logger.info("\n🤖 Step 6: Initializing RAG Service...")
         from app.pipeline.rag_chain import LangChainRAGService, RAGConfig
 
         _rag_service = LangChainRAGService(
@@ -179,6 +223,7 @@ def initialize_all():
             lm_studio_url=settings.LM_STUDIO_URL,
             lm_studio_model=settings.LM_STUDIO_MODEL,
             memory_manager=_memory_manager,
+            mcp_client=_mcp_client,
         )
 
         if _rag_service.is_available():
@@ -264,6 +309,9 @@ def get_document_loader():
 
 def get_embedding_manager():
     return _embedding_manager
+
+def get_mcp_client():
+    return _mcp_client
 
 def get_vector_store():
     return _vector_store

@@ -783,6 +783,8 @@ class LangChainRAGService:
         lm_studio_url:   str = "http://localhost:1234/v1",
         lm_studio_model: str = "local-model",
         memory_manager:  Optional[ConversationMemoryManager] = None,
+        mcp_client=None,
+        
     ):
         self.vectorstore     = vectorstore
         self.config          = config or RAGConfig()
@@ -790,6 +792,7 @@ class LangChainRAGService:
         self.lm_studio_model = lm_studio_model
         self.config.model    = lm_studio_model
         self.config.base_url = lm_studio_url
+        self.mcp_client = mcp_client
 
         self.memory_manager = memory_manager or ConversationMemoryManager(
             memory_type="buffer_window",
@@ -817,6 +820,7 @@ class LangChainRAGService:
             retrieval_service=self.retrieval_service,
             memory_manager=self.memory_manager,
             llm=self.llm,
+            mcp_client=self.mcp_client, 
         )
 
         logger.info("=" * 70)
@@ -894,6 +898,7 @@ class LangChainRAGService:
             "fallback_used":     False,
             "success":           False,
             "metadata":          {},
+            "_prompt_override":  None,
         }
 
         try:
